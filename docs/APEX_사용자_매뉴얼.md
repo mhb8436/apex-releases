@@ -1,21 +1,36 @@
 # APEX 사용자 매뉴얼
 
-> **APEX** (Code Quality Analyzer) v1.0.0
-> 소스코드 품질 검사 도구
+> **APEX** (Code Quality Analyzer)
+> 소스코드 품질 검사 도구 — 데스크톱 앱과 CLI
 
 ---
 
 ## 1. 개요
 
-APEX는 Java, JavaScript, HTML, CSS, SQL, XML 소스코드를 개발 표준에 따라 정적 분석하는 CLI 도구입니다.
+APEX는 Java, JavaScript, HTML, CSS, SQL, XML 소스코드를 개발 표준에 따라
+정적 분석합니다. 데스크톱 앱과 명령행 도구 두 가지로 쓸 수 있고, 둘은 같은 룰
+엔진 위에 올라가 있습니다.
 
 **주요 특징**
 
-- 455개 검사 규칙 내장 (402개 활성)
-- YAML 설정만으로 규칙 추가/변경 가능 (재빌드 불필요)
+- 535개 검사 규칙 내장 (453개 기본 활성)
+- 데스크톱 앱(Windows / macOS)과 CLI(Windows / macOS / Linux)
+- 규칙 선택을 YAML 스냅샷으로 저장 — 앱에서 정한 규칙을 CI가 그대로 재현
+- YAML 설정만으로 규칙 추가·변경 가능 (재빌드 불필요)
 - 콘솔, JSON, HTML, Excel 리포트 출력
-- 프로파일 기반 규칙 그룹 관리
-- Windows, Linux, macOS 지원
+- DDL × 쿼리 교차 분석으로 인덱스·스키마 정합성 점검
+- 폐쇄망에서 로컬 추론 서버로 AI 감리 보고서 생성
+
+**어느 쪽을 쓰는가**
+
+| | 데스크톱 앱 (`apex-gui`) | CLI (`apex`) |
+|---|---|---|
+| 쓰는 자리 | 처음 보는 코드를 훑고, 적용할 규칙을 정하고, 넘길 보고서를 만들 때 | CI 파이프라인, 정기 점검, 배치 |
+| 플랫폼 | Windows x64, macOS | Windows, macOS, Linux |
+| 보고서 | Excel, HTML, JSON, AI 감리, DOCX | 콘솔, Excel, HTML, JSON, AI 감리, DOCX |
+
+둘 중 하나만 고르는 구조가 아닙니다. 앱에서 규칙을 정해 스냅샷으로 저장하고,
+CI는 그 파일을 `--overrides` 로 읽습니다(3.4, 5장).
 
 ---
 
@@ -25,69 +40,194 @@ APEX는 Java, JavaScript, HTML, CSS, SQL, XML 소스코드를 개발 표준에 �
 
 ```
 apex-windows-amd64/
-  apex-windows-amd64.exe        ← 실행 파일
+  apex.exe                      ← CLI
+  apex-gui.exe                  ← 데스크톱 앱 (Windows / macOS 만)
+  apex-report.exe               ← DOCX 감리 보고서 생성기 (Windows / macOS 만)
   configs/
     profiles.yaml               ← 프로파일 정의
     rulesets/
-      quality.yaml              ← 코드 품질 (121개, 113 활성)
-      secure.yaml               ← 시큐어코딩 (110개, 105 활성)
-      sql.yaml                  ← SQL 공통 ANSI (88개, 71 활성)
-      sql-oracle.yaml           ← SQL Oracle 전용 (19개, 17 활성)
+      quality.yaml              ← 코드 품질 (125개, 107 활성)
+      secure.yaml               ← 시큐어코딩 (131개, 123 활성)
+      sql.yaml                  ← SQL 공통 ANSI (120개, 102 활성)
+      sql-oracle.yaml           ← SQL Oracle 전용 (20개, 18 활성)
       sql-format.yaml           ← SQL 포맷/스타일 (7개)
       modernize.yaml            ← 레거시 현대화 (50개, 39 활성)
-      spring.yaml               ← Spring 표준 (27개, 24 활성)
-      egov.yaml                 ← 전자정부 표준 (33개, 26 활성)
+      spring.yaml               ← Spring 표준 (32개, 28 활성)
+      egov.yaml                 ← 전자정부 표준 (33개, 12 활성)
+      ddl.yaml                  ← DDL × 쿼리 교차 분석 (17개)
 ```
+
+Linux 번들에는 `apex` 만 들어 있습니다. 데스크톱 앱은 Wails가 빌드 시점에
+GTK·WebKit을 요구해 아직 Linux 빌드를 제공하지 않습니다.
+
+데스크톱 앱만 필요하면 단독 파일로도 배포합니다:
+`apex-gui-windows-amd64.exe`, `apex-gui-darwin-arm64`, `apex-gui-darwin-amd64`.
 
 ### 2.2 Windows 설치
 
 1. `apex-windows-amd64.zip` 압축 해제
 2. 원하는 경로에 폴더 배치 (예: `C:\tools\apex\`)
-3. (선택) 환경 변수 PATH에 추가
+3. 데스크톱 앱은 `apex-gui.exe` 더블클릭
+4. (선택) CLI를 아무 데서나 쓰려면 환경 변수 PATH에 추가
 
 ```
 [시스템 속성] → [환경 변수] → Path → 편집 → C:\tools\apex 추가
 ```
 
-### 2.3 설치 확인
+> 데스크톱 앱은 Microsoft WebView2 런타임으로 화면을 그립니다. Windows 11과
+> 최근 Windows 10에는 기본 포함이고, 없으면 창이 뜨지 않거나 흰 화면이
+> 나옵니다. 그럴 때
+> [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)을
+> 설치하세요.
 
-```cmd
-apex-windows-amd64.exe profiles
+### 2.3 macOS 설치
+
+```bash
+tar -xzf apex-darwin-arm64.tar.gz      # Intel 은 apex-darwin-amd64.tar.gz
+cd apex-darwin-arm64
+
+# 코드 서명·공증을 아직 적용하지 않아 Gatekeeper가 격리합니다.
+# 이 줄을 건너뛰면 "손상되었기 때문에 열 수 없습니다" 가 뜹니다.
+xattr -dr com.apple.quarantine .
+
+./apex-gui        # 데스크톱 앱
+./apex --help     # CLI
 ```
 
-프로파일 목록이 출력되면 정상입니다.
+### 2.4 Linux 설치
+
+```bash
+tar -xzf apex-linux-amd64.tar.gz
+cd apex-linux-amd64
+./apex --help
+```
+
+### 2.5 설치 확인
+
+```bash
+./apex profiles
+```
+
+프로파일 목록이 출력되면 정상입니다. 데스크톱 앱은 실행 후 규칙 탭에 규칙이
+채워져 있으면 정상이고, 비어 있다면 실행 파일 옆에 `configs/` 폴더가 함께
+풀렸는지 확인하세요.
 
 ---
 
-## 3. 기본 사용법
+## 3. 데스크톱 앱으로 점검하기
 
-### 3.1 소스코드 검사
+### 3.1 화면 구성
+
+왼쪽 사이드바에 탭 여섯 개가 있습니다. `Ctrl/Cmd` + 숫자로도 이동합니다.
+
+| 탭 | 단축키 | 하는 일 |
+|----|--------|--------|
+| 점검 | `Ctrl/Cmd+1` | 소스 폴더, 프로파일, 최소 심각도, DDL 교차 분석 / 실행·취소·진행률 |
+| 규칙 | `Ctrl/Cmd+2` | 규칙 켜고 끄기, 심각도 변경, 커스텀 규칙, 스냅샷 저장·불러오기 |
+| 결과 | `Ctrl/Cmd+3` | 지표·등급 대시보드, 이슈 목록 |
+| 보고서 | `Ctrl/Cmd+4` | Excel / HTML / JSON 내보내기 |
+| AI 감리 | `Ctrl/Cmd+5` | 로컬 추론 서버로 감리 보고서 생성 |
+| 설정 | `Ctrl/Cmd+6` | 앱 환경설정 |
+
+> 앱 화면은 현재 한국어만 지원합니다. CLI는 `--lang=en|ko` 를 따릅니다.
+
+### 3.2 점검 실행
+
+점검 탭에서 순서대로 채웁니다.
+
+1. **대상 폴더** — [찾아보기]로 소스 루트를 고릅니다. 경로를 직접 입력해도
+   됩니다.
+2. **프로파일** — 돌릴 프로파일을 체크합니다. 여러 개를 함께 고를 수
+   있습니다. 무엇을 고를지는 4.2의 표를 참고하세요.
+3. **최소 심각도** — 낮음 이상 / 보통 이상 / 높음 이상 / 심각만. 결과에 담을
+   최소 등급입니다.
+4. **DDL 크로스 분석** (선택) — DDL 파일이나 폴더를 지정하면 SQL의
+   테이블·컬럼 존재성과 인덱스 사용까지 함께 점검합니다.
+
+실행하면 진행률이 표시되고, 오래 걸리는 대형 프로젝트는 도중에 취소할 수
+있습니다. 끝나면 결과 탭으로 넘어갑니다.
+
+### 3.3 결과 보기
+
+결과 탭 위쪽은 지표와 등급 대시보드입니다. 규모(라인 수, 주석 비율), 순환
+복잡도, 중복도, 기술부채와 A~E 등급이 나옵니다. 규칙 위반 건수만으로는 보이지
+않는 "규모 대비 품질"이 여기서 드러납니다.
+
+아래쪽은 이슈 목록입니다. 심각도와 규칙으로 걸러 볼 수 있고, 이슈를 누르면
+해당 파일이 그 줄에서 열립니다.
+
+### 3.4 규칙 조정과 스냅샷
+
+규칙 탭에서 이 프로젝트에 맞게 규칙을 손봅니다.
+
+- **끄기 / 켜기** — 토글 하나로 바뀝니다. 프로파일 단위 일괄 토글도 됩니다.
+- **심각도 변경** — 기본 심각도가 현장과 안 맞으면 규칙별로 바꿉니다.
+- **커스텀 규칙** — 팀 규약을 정규식으로 등록합니다. 저장 전에 샘플 코드에
+  붙여 실제로 매치되는지 확인할 수 있어, 패턴을 틀린 채로 넣는 일이 줄어듭니다.
+
+조정이 끝나면 **스냅샷 저장**으로 `ruleset.yaml` 을 남깁니다. 이 파일이 CLI의
+`--overrides` 가 읽는 바로 그 형식이라, 앱에서 한 번 정한 규칙을 CI가 매 빌드
+그대로 재현합니다.
+
+```bash
+apex /path/to/project --profile=all --overrides=ruleset.yaml \
+  -o excel --output-file=report.xlsx
+```
+
+반대 방향도 됩니다. CLI의 `--save-overrides` 로 만든 파일을 앱에서 불러오면
+같은 상태가 화면에 그대로 뜹니다. 파일 형식은 5장에 있습니다.
+
+### 3.5 보고서 내보내기
+
+보고서 탭에서 Excel, HTML, JSON을 만듭니다.
+
+| 형식 | 쓰는 자리 |
+|------|----------|
+| Excel | 기관·개발사 제출용. 시트별 전체 데이터 |
+| HTML | 브라우저로 바로 여는 단일 파일 |
+| JSON | CI 연동, 외부 도구 import, AI 감리 보고서 입력 |
+
+만든 파일은 [최근 생성] 목록에 남아 바로 열어볼 수 있습니다.
+
+### 3.6 AI 감리 보고서
+
+AI 감리 탭에서 점검 결과를 감리 보고서로 만듭니다. 엔드포인트와 모델을 넣고
+[연결 확인]으로 서버가 응답하는지 먼저 본 뒤 생성하면 됩니다. 폐쇄망 모드는
+체크박스입니다. 같은 탭에서 기관 제출용 DOCX 보고서도 만들 수 있습니다.
+자세한 내용은 10장에 있습니다.
+
+---
+
+## 4. 명령행으로 점검하기
+
+### 4.1 소스코드 검사
 
 ```cmd
 REM 기본 검사 (전체 규칙)
-apex-windows-amd64.exe C:\projects\my-app\src
+apex.exe C:\projects\my-app\src
 
 REM 특정 프로파일로 검사
-apex-windows-amd64.exe C:\projects\my-app\src --profile=quality
-apex-windows-amd64.exe C:\projects\my-app\src --profile=sql
-apex-windows-amd64.exe C:\projects\my-app\src --profile=secure
+apex.exe C:\projects\my-app\src --profile=quality
+apex.exe C:\projects\my-app\src --profile=sql
+apex.exe C:\projects\my-app\src --profile=secure
 
 REM 여러 프로파일 조합
-apex-windows-amd64.exe C:\projects\my-app\src --profile=quality,secure,sql
+apex.exe C:\projects\my-app\src --profile=quality,secure,sql
 ```
 
-### 3.2 사용 가능한 프로파일
+### 4.2 사용 가능한 프로파일
 
-| 프로파일 | 규칙 수 | 대상 언어 | 설명 |
-|----------|---------|-----------|------|
-| `quality` | 113 | Java, JS, HTML, CSS | 코드 품질, 명명규칙, 복잡도 |
-| `secure` | 105 | Java, JS | 시큐어코딩 가이드 |
-| `sql` | 71 | SQL, XML | ANSI SQL 공통 규칙 (DB 불문) |
-| `sql-oracle` | 17 | SQL, XML | Oracle 전용 (NVL, ROWNUM, hints 등) |
-| `sql-format` | 7 | SQL, XML | SQL 포맷 강제 (대문자, 80자 등) |
-| `modernize` | 39 | Java, XML | eGov 3.x→4.x, javax→jakarta |
-| `spring` | 24 | Java | Spring/Boot 개발 표준 |
-| `egov` | 26 | Java, XML | 전자정부 프레임워크 표준 |
+| 프로파일 | 규칙 수 | 기본 활성 | 대상 언어 | 설명 |
+|----------|---------|-----------|-----------|------|
+| `quality` | 125 | 107 | Java, JS, HTML, CSS | 코드 품질, 명명규칙, 복잡도 |
+| `secure` | 131 | 123 | Java, JS | 시큐어코딩 가이드 |
+| `sql` | 120 | 102 | SQL, XML, Java | ANSI SQL 공통 규칙 (DB 불문) |
+| `sql-oracle` | 20 | 18 | SQL, XML, Java | Oracle 전용 (NVL, ROWNUM, hints 등) |
+| `sql-format` | 7 | 7 | SQL, XML, Java | SQL 포맷 강제 (대문자, 80자 등) |
+| `modernize` | 50 | 39 | Java, XML | eGov 3.x→4.x, javax→jakarta |
+| `spring` | 32 | 28 | Java | Spring/Boot 개발 표준 |
+| `egov` | 33 | 12 | Java, XML | 전자정부 프레임워크 표준 |
+| `ddl` | 17 | 17 | SQL, XML, Java | DDL × 쿼리 교차 분석 (`--ddl` 필요) |
 
 **SQL 프로파일 조합 가이드**
 
@@ -102,26 +242,27 @@ apex-windows-amd64.exe C:\projects\my-app\src --profile=quality,secure,sql
 
 | 그룹 | 포함 프로파일 | 설명 |
 |------|-------------|------|
-| `all` | 전체 8개 | 모든 규칙 검사 (Oracle+포맷 포함) |
+| `all` | 전체 8개 (ddl 제외) | 모든 규칙 검사 (Oracle+포맷 포함) |
 | `essential` | quality, secure | 필수 품질+보안 |
 | `sql-all` | sql, sql-oracle, sql-format | SQL 전체 (Oracle+포맷) |
+| `sql-ddl` | sql, sql-oracle, ddl | SQL + 스키마 교차 검증 |
 | `egov-full` | quality, secure, sql, sql-oracle, sql-format, egov, spring | 전자정부 전체 |
 | `migration` | modernize, spring | 마이그레이션 점검 |
 
-### 3.3 출력 형식
+### 4.3 출력 형식
 
 ```cmd
 REM 콘솔 출력 (기본)
-apex-windows-amd64.exe C:\src --profile=sql
+apex.exe C:\src --profile=sql
 
 REM HTML 리포트
-apex-windows-amd64.exe C:\src --profile=all -o html --output-file=report.html
+apex.exe C:\src --profile=all -o html --output-file=report.html
 
 REM Excel 리포트
-apex-windows-amd64.exe C:\src --profile=all -o excel --output-file=report.xlsx
+apex.exe C:\src --profile=all -o excel --output-file=report.xlsx
 
 REM JSON 출력
-apex-windows-amd64.exe C:\src --profile=all -o json --output-file=report.json
+apex.exe C:\src --profile=all -o json --output-file=report.json
 ```
 
 **Excel 리포트 시트 구성**
@@ -133,67 +274,74 @@ apex-windows-amd64.exe C:\src --profile=all -o json --output-file=report.json
 | 파일별통계 | 파일별 이슈 수 |
 | 적용규칙 | 적용된 규칙 목록과 위반 건수 |
 
-### 3.4 심각도 필터
+### 4.4 심각도 필터
 
 ```cmd
 REM high 이상만 표시
-apex-windows-amd64.exe C:\src --profile=all --min-severity=high
+apex.exe C:\src --profile=all --min-severity=high
 
 REM critical만 표시
-apex-windows-amd64.exe C:\src --profile=all --min-severity=critical
+apex.exe C:\src --profile=all --min-severity=critical
 ```
 
 심각도 단계: `low` < `medium` < `high` < `critical`
 
-### 3.5 상세 모드
+### 4.5 상세 모드
 
 ```cmd
-apex-windows-amd64.exe C:\src --profile=sql -v
+apex.exe C:\src --profile=sql -v
 ```
 
 로드된 프로파일, 처리 파일 수, 총 이슈 수 등 상세 정보를 표시합니다.
 
-### 3.6 규칙별 요약 테이블 (CI/CD)
+### 4.6 규칙별 요약 테이블 (CI/CD)
 
 ```cmd
-apex-windows-amd64.exe C:\src --profile=all --summary
+apex.exe C:\src --profile=all --summary
 ```
 
 규칙 ID별 위반 건수를 테이블로 출력합니다. CI/CD 파이프라인에서 빠르게 확인할 때 유용합니다.
 
-### 3.7 특정 규칙 제외
+### 4.7 특정 규칙 제외
 
 ```cmd
 REM 특정 규칙 ID를 제외하고 검사 (오버라이드 파일 없이)
-apex-windows-amd64.exe C:\src --profile=all --exclude-rule=quality-lg-005,secure-sql-002
+apex.exe C:\src --profile=all --exclude-rule=quality-lg-005,secure-sql-002
 ```
 
-### 3.8 크로스파일 분석만 실행
+### 4.8 크로스파일 분석만 실행
 
 ```cmd
 REM MyBatis 미사용 SQL ID, Mapper-VO 불일치 등 아키텍처 이슈만 확인
-apex-windows-amd64.exe C:\src --profile=all --cross-file-only
+apex.exe C:\src --profile=all --cross-file-only
 ```
 
-### 3.9 중복 규칙 병합 제어
+### 4.9 중복 규칙 병합 제어
 
 여러 프로파일을 조합하면 동일한 이슈가 여러 규칙에서 중복 검출될 수 있습니다. 기본적으로 APEX는 같은 파일+라인에서 중복 검출된 이슈를 자동 병합합니다.
 
 ```cmd
 REM 기본: 자동 병합 (동일 위치 중복 이슈는 최고 심각도 1건만 유지)
-apex-windows-amd64.exe C:\src --profile=all
+apex.exe C:\src --profile=all
 
 REM 병합 비활성화: 모든 이슈를 개별 표시 (디버깅/규칙 확인 용)
-apex-windows-amd64.exe C:\src --profile=all --no-dedup
+apex.exe C:\src --profile=all --no-dedup
 ```
 
 ---
 
-## 4. 규칙 오버라이드
+## 5. 규칙 오버라이드
 
 현장 환경에 맞게 규칙의 심각도를 변경하거나 특정 규칙을 끌 수 있습니다.
 
-### 4.1 오버라이드 파일 작성
+이 파일은 데스크톱 앱 규칙 탭에서 [스냅샷 저장]으로 만든 것과 같은 형식입니다
+(3.4). 앱에서 토글로 조정한 결과를 CLI가 그대로 읽고, CLI의
+`--save-overrides` 로 만든 파일을 앱이 다시 불러옵니다.
+
+> 규칙 식별 필드는 `id` 입니다. `rule_id` 로 적으면 오류 없이 조용히
+> 무시되므로, 껐는데도 계속 검출된다면 이 항목부터 확인하세요.
+
+### 5.1 오버라이드 파일 작성
 
 `overrides.yaml` 파일 생성:
 
@@ -214,17 +362,17 @@ overrides:
     enabled: false
 ```
 
-### 4.2 오버라이드 적용
+### 5.2 오버라이드 적용
 
 ```cmd
-apex-windows-amd64.exe C:\src --profile=sql --overrides=overrides.yaml
+apex.exe C:\src --profile=sql --overrides=overrides.yaml
 ```
 
 ---
 
-## 5. 규칙 상세
+## 6. 규칙 상세
 
-### 5.1 SQL 프로파일 구조
+### 6.1 SQL 프로파일 구조
 
 SQL 규칙은 DB 환경에 따라 3개 프로파일로 분리되어 있습니다:
 
@@ -262,7 +410,7 @@ Oracle DB 환경에서만 의미 있는 규칙입니다.
 | sql-where-007 | 한줄 한조건 | 조건을 한 줄에 하나만 기술 |
 | sql-sel-006 | 주석 형식 강제 | `/* */` 형식만 허용 |
 
-### 5.2 SQL 냄새(Smell) 규칙
+### 6.2 SQL 냄새(Smell) 규칙
 
 #### 공통 Smell (sql.yaml 내)
 
@@ -303,7 +451,7 @@ Oracle DB 환경에서만 의미 있는 규칙입니다.
 | sql-smell-034 | 서브쿼리 ORDER BY | high | 페이징 없는 정렬은 무의미 |
 | sql-smell-035 | 인라인뷰 별칭 누락 | high | 별칭 없으면 참조 불가 |
 
-### 5.2 규칙 타입 요약
+### 6.3 규칙 타입 요약
 
 | 타입 | 설명 | 수정 범위 |
 |------|------|-----------|
@@ -325,7 +473,7 @@ Oracle DB 환경에서만 의미 있는 규칙입니다.
 | `ast-sql-*` | SQL AST 구조 분석 | Go 코드 + YAML |
 | `method-analysis` | Go 내장 분석 로직 | Go 코드 필요 |
 
-### 5.3 규칙 엔진 동작 방식 비교
+### 6.4 규칙 엔진 동작 방식 비교
 
 APEX의 규칙은 입력 데이터와 매칭 방식에 따라 크게 4가지로 분류됩니다.
 
@@ -430,9 +578,9 @@ APEX의 규칙은 입력 데이터와 매칭 방식에 따라 크게 4가지로 
 
 ---
 
-## 6. 규칙 추가 가이드
+## 7. 규칙 추가 가이드
 
-### 6.1 Regex 규칙 추가 (가장 간단)
+### 7.1 Regex 규칙 추가 (가장 간단)
 
 `configs/rulesets/sql.yaml`에 아래 형식으로 추가합니다:
 
@@ -459,7 +607,7 @@ APEX의 규칙은 입력 데이터와 매칭 방식에 따라 크게 4가지로 
 - `(?:...)` = 비캡처 그룹
 - `flags: "i"` 를 `custom:` 아래에 넣으면 대소문자 무시
 
-### 6.2 Regex-multiline 규칙 추가
+### 7.2 Regex-multiline 규칙 추가
 
 여러 줄에 걸친 패턴을 검사합니다:
 
@@ -485,7 +633,7 @@ APEX의 규칙은 입력 데이터와 매칭 방식에 따라 크게 4가지로 
 - `[\\s\\S]*` = 줄바꿈 포함 모든 문자 (탐욕적)
 - 패턴이 너무 넓으면 오탐 발생, `*?` (비탐욕적) 사용 권장
 
-### 6.3 규칙 비활성화
+### 7.3 규칙 비활성화
 
 YAML에서 `enabled: false`로 변경하거나 오버라이드 파일 사용:
 
@@ -500,7 +648,7 @@ overrides:
     enabled: false
 ```
 
-### 6.4 새 프로파일 추가
+### 7.4 새 프로파일 추가
 
 `configs/profiles.yaml`에 추가:
 
@@ -530,7 +678,7 @@ groups:
 
 그런 다음 `configs/rulesets/my-rules.yaml` 파일을 생성합니다.
 
-### 6.5 새 YAML 규칙셋 파일 생성
+### 7.5 새 YAML 규칙셋 파일 생성
 
 ```yaml
 version: "1.0"
@@ -571,26 +719,26 @@ languages:
 
 ---
 
-## 7. 실전 활용 예시
+## 8. 실전 활용 예시
 
-### 7.1 SQL 파일만 검사
+### 8.1 SQL 파일만 검사
 
 ```cmd
-apex-windows-amd64.exe C:\projects\sql-files --profile=sql -o excel --output-file=sql_report.xlsx
+apex.exe C:\projects\sql-files --profile=sql -o excel --output-file=sql_report.xlsx
 ```
 
-### 7.2 CI/CD 파이프라인 연동
+### 8.2 CI/CD 파이프라인 연동
 
 ```cmd
 REM critical 이슈가 있으면 빌드 실패 (종료 코드 1)
-apex-windows-amd64.exe C:\src --profile=essential --min-severity=critical
+apex.exe C:\src --profile=essential --min-severity=critical
 if %ERRORLEVEL% NEQ 0 (
     echo "Critical 이슈 발견! 빌드 실패"
     exit /b 1
 )
 ```
 
-### 7.3 배치 파일 예시
+### 8.3 배치 파일 예시
 
 `run_apex.bat` 파일 생성:
 
@@ -608,7 +756,7 @@ echo === APEX 소스코드 품질 검사 ===
 echo 대상: %TARGET%
 echo.
 
-%APEX_HOME%\apex-windows-amd64.exe %TARGET% ^
+%APEX_HOME%\apex.exe %TARGET% ^
     --profile=all ^
     --profiles-file=%APEX_HOME%\configs\profiles.yaml ^
     -o excel ^
@@ -626,25 +774,28 @@ pause
 run_apex.bat C:\projects\my-app\src
 ```
 
-### 7.4 MyBatis XML 포함 검사
+### 8.4 MyBatis XML 포함 검사
 
 SQL 프로파일은 `.sql` 파일뿐 아니라 MyBatis XML (`*Mapper.xml`) 내부의 SQL도 함께 검사합니다.
 
 ```cmd
 REM src 아래 .sql 파일 + .xml(MyBatis) 모두 검사
-apex-windows-amd64.exe C:\projects\my-app\src --profile=sql
+apex.exe C:\projects\my-app\src --profile=sql
 ```
 
 ---
 
-## 8. 옵션 전체 목록
+## 9. 옵션 전체 목록
 
 | 옵션 | 축약 | 기본값 | 설명 |
 |------|------|--------|------|
 | `--profile` | `-p` | `all` | 프로파일 지정 (쉼표 구분) |
 | `--config` | `-c` | - | 설정 파일 직접 지정 (--profile과 동시 사용 불가) |
 | `--profiles-file` | - | `configs/profiles.yaml` | 프로파일 정의 파일 경로 |
-| `--overrides` | - | - | 규칙 오버라이드 파일 |
+| `--overrides` | - | - | 규칙 오버라이드 파일 (데스크톱 앱 스냅샷과 같은 형식) |
+| `--save-overrides` | - | - | 지금 적용된 규칙 집합을 YAML로 저장 |
+| `--ddl` | - | - | DDL 파일·디렉터리. 지정하면 교차 분석 수행 |
+| `--lang` | - | 시스템 로캘 | 출력 언어 (en/ko) |
 | `--output` | `-o` | `console` | 출력 형식 (console/json/html/excel) |
 | `--output-file` | - | stdout | 출력 파일 경로 |
 | `--min-severity` | `-s` | `low` | 최소 심각도 필터 |
@@ -661,10 +812,126 @@ apex-windows-amd64.exe C:\projects\my-app\src --profile=sql
 |--------|------|
 | `profiles` | 사용 가능한 프로파일 목록 표시 |
 | `profiles -v` | 프로파일 상세 정보 표시 |
+| `ai-report` | 점검 결과로 AI 감리 보고서 생성 (아래 10장) |
+| `report` | 엑셀 점검 결과를 감리 보고서로 병합 |
 
 ---
 
-## 9. 문제 해결
+## 10. AI 감리 보고서 (폐쇄망 지원)
+
+점검 결과 JSON을 받아 감리 보고서 HTML을 만든다. OpenAI 호환 엔드포인트면
+무엇이든 붙으므로 Ollama·vLLM·LM Studio 같은 **사내 추론 서버를 그대로 쓸 수
+있고, 인터넷 연결이 필요 없다.**
+
+```bash
+# 1) 점검 결과를 JSON으로 저장
+apex /path/to/src --profile=all -o json --output-file=scan.json
+
+# 2) 사내 추론 서버로 보고서 생성
+apex ai-report scan.json --offline \
+    --endpoint http://127.0.0.1:11434/v1 \
+    --model qwen2.5-coder:7b \
+    --project "OO시스템" \
+    -o report.html
+```
+
+### 옵션
+
+| 옵션 | 기본값 | 설명 |
+|------|--------|------|
+| `--output` / `-o` | `ai-report.html` | 결과 HTML 경로 |
+| `--provider` | `openai` | `openai`(호환 엔드포인트) / `claude` / `gemini` |
+| `--endpoint` | OpenAI 공식 | OpenAI 호환 엔드포인트 주소 |
+| `--model` | 프로바이더 기본값 | 모델 이름 |
+| `--api-key` | - | API 키. 로컬 서버는 아무 값이나 된다 |
+| `--project` | 입력 파일명 | 보고서에 쓸 대상 시스템 이름 |
+| `--lang` | `ko` | `ko` / `en` |
+| `--offline` | false | **폐쇄망 모드.** 루프백 밖 연결을 차단 |
+| `--timeout` | `5m` | 요청당 제한시간 |
+
+### `--offline` — 폐쇄망 모드
+
+`--offline` 을 켜면 APEX는 **루프백(127.0.0.1, ::1) 밖으로 나가는 모든 연결을
+거부한다.** 목적지 IP를 보고 막으므로 호스트명을 바꿔 우회할 수 없고, 이름
+해석(DNS)도 함께 막힌다. 프록시 설정으로도 빠져나가지 못한다.
+
+외부 주소를 지정하면 보고서가 만들어지지 않고 차단 사유와 함께 실패한다.
+
+```
+$ apex ai-report scan.json --offline --endpoint https://api.openai.com/v1
+🔒 폐쇄망 모드: 루프백(127.0.0.1) 밖으로 나가는 연결을 차단합니다
+Error: ... 폐쇄망 모드: 외부 연결이 차단되었습니다. 루프백 주소만 허용됩니다
+```
+
+이 동작을 직접 확인하는 절차는 [폐쇄망 동작 검증](AIRGAP_VERIFICATION.md)에
+정리되어 있다.
+
+`claude`, `gemini` 프로바이더는 외부 API이므로 `--offline` 과 함께 쓸 수 없다.
+
+### 보고서 내용
+
+| 항목 | 만드는 주체 |
+|------|------------|
+| 대표 발견사항 선정 | APEX (심각도·분류 기준, 항상 같은 입력에 같은 결과) |
+| 파일명·라인·규칙 ID | APEX (점검 결과 그대로. 모델이 바꾸지 못한다) |
+| 품질 점수·A~E 등급 | APEX (부채비율·보안 심각도에서 계산) |
+| 문제 설명·개선 코드 | 모델 |
+| 총평·위험·로드맵·결론 | 모델 |
+
+모델이 존재하지 않는 파일명이나 규칙 ID를 지어내면 그 항목은 기각되고 규칙에
+등록된 설명으로 대체된다. 보고서 하단의 생성 주체 표기에는 실제 사용한
+엔드포인트 성격과 모델명이 남는다 (예: `local:qwen2.5-coder:7b`).
+
+### 권장 모델
+
+폐쇄망 환경에서 실측한 결과는 [로컬 LLM 평가](LOCAL_LLM_EVALUATION.md) 참고.
+7B급에서는 `qwen2.5-coder:7b` 가 가장 안정적이었다.
+
+### GUI에서 만들기
+
+데스크톱 앱의 **[AI 감리]** 탭(`⌘5` / `Ctrl+5`)에서 같은 일을 한다.
+점검을 먼저 실행해야 탭이 열린다.
+
+| 항목 | 설명 |
+|------|------|
+| 기관·시스템명 | 보고서 제목에 쓰인다 |
+| 생성 방식 | `사내 추론 서버 (OpenAI 호환)` / `Claude` / `Gemini` |
+| 엔드포인트 | 사내 추론 서버 주소. 기본값 `http://127.0.0.1:11434/v1` |
+| 모델 | 모델 이름. [연결 확인] 후에는 서버가 알려준 목록에서 고른다 |
+| 폐쇄망 모드 | 기본 켜짐. 보고서 생성 중 모델 서버 연결을 루프백으로 제한한다 |
+
+**[서버에 연결해 보기]** 를 먼저 누르면 주소와 모델 이름을 미리 검증한다.
+폐쇄망 설치에서 가장 흔한 실패가 주소·모델명 오타인데, 2분을 기다린 끝에
+실패를 보는 대신 바로 확인할 수 있다. 모델 목록을 받아오면 입력란이 선택
+목록으로 바뀌고, 지금 적힌 모델이 목록에 없으면 알려준다.
+
+생성 중에는 단계별 진행 상황이 표시되고 취소할 수 있다. 저장 위치는 생성을
+시작하기 전에 묻는다.
+
+외부 API(`Claude`, `Gemini`)를 고르면 폐쇄망 모드는 자동으로 꺼진다. 둘은
+함께 쓸 수 없다.
+
+GUI의 폐쇄망 모드는 **보고서 생성 경로**에 적용된다. 프로세스 전체의 모든
+연결을 막는 것은 CLI의 `--offline` 쪽이다. 검증 절차는 CLI 기준으로
+[폐쇄망 동작 검증](AIRGAP_VERIFICATION.md)에 정리되어 있다.
+
+> **DOCX 보고서는 별개다.** 같은 화면 아래쪽의 [DOCX 보고서]는 별도 생성기를
+> 통해 Word 문서를 만들며, AI 본문은 Anthropic API만 지원한다. 폐쇄망에서는
+> [기본 텍스트]만 쓸 수 있다.
+
+---
+
+## 11. 문제 해결
+
+### 데스크톱 앱이 안 뜰 때
+
+| 증상 | 원인과 해결 |
+|------|------------|
+| macOS — "손상되었기 때문에 열 수 없습니다" | 코드 서명·공증이 아직 없어 Gatekeeper가 격리한 것입니다. 압축 푼 폴더에서 `xattr -dr com.apple.quarantine .` 실행 후 다시 여세요 |
+| Windows — 창이 안 뜨거나 흰 화면 | Microsoft WebView2 런타임이 없습니다. [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) 설치 |
+| Linux — `apex-gui` 파일이 없음 | Linux용 데스크톱 앱은 빌드하지 않습니다. CLI(`apex`)를 사용하세요 |
+| 규칙 탭이 비어 있음 | 실행 파일과 같은 위치에 `configs/` 폴더가 있어야 합니다. 번들을 통째로 풀었는지 확인하세요 |
+| AI 감리 탭에서 생성이 실패함 | [연결 확인]을 먼저 눌러 엔드포인트와 모델 이름을 검증하세요. 폐쇄망 모드에서 외부 주소를 지정하면 차단됩니다(10장) |
 
 ### 프로파일 로드 실패
 
@@ -675,14 +942,14 @@ apex-windows-amd64.exe C:\projects\my-app\src --profile=sql
 `--profiles-file` 옵션으로 정확한 경로를 지정하세요:
 
 ```cmd
-apex-windows-amd64.exe C:\src --profiles-file=C:\tools\apex\configs\profiles.yaml --profile=sql
+apex.exe C:\src --profiles-file=C:\tools\apex\configs\profiles.yaml --profile=sql
 ```
 
 ### 한글 깨짐 (콘솔 출력)
 
 ```cmd
 chcp 65001
-apex-windows-amd64.exe C:\src --profile=sql
+apex.exe C:\src --profile=sql
 ```
 
 또는 HTML/Excel 출력을 사용하면 한글이 정상 표시됩니다.
@@ -704,14 +971,15 @@ APEX는 확장자 기반으로 파일을 수집합니다:
 
 | 프로파일 | 전체 | 활성 | 주요 검사 항목 |
 |----------|------|------|---------------|
-| quality | 121 | 113 | 명명규칙, 복잡도, 코드스멜, 레이어 구조, 주석 |
-| secure | 110 | 105 | SQL Injection, XSS, 암호화, 인증/인가, 에러처리 |
-| sql | 88 | 71 | ANSI SQL 공통: SELECT, JOIN, WHERE, DML, 냄새 |
-| sql-oracle | 19 | 17 | Oracle 전용: NVL, TO_CHAR, hints, ROWNUM, DECODE |
+| quality | 125 | 107 | 명명규칙, 복잡도, 코드스멜, 레이어 구조, 주석 |
+| secure | 131 | 123 | SQL Injection, XSS, 암호화, 인증/인가, 에러처리 |
+| sql | 120 | 102 | ANSI SQL 공통: SELECT, JOIN, WHERE, DML, 냄새 |
+| sql-oracle | 20 | 18 | Oracle 전용: NVL, TO_CHAR, hints, ROWNUM, DECODE |
 | sql-format | 7 | 7 | SQL 포맷: 키워드 대문자, 라인 길이, 한줄한컬럼 |
 | modernize | 50 | 39 | eGov 마이그레이션, javax→jakarta, deprecated API |
-| spring | 27 | 24 | DI 패턴, @Transactional, REST API, 보안 |
-| egov | 33 | 26 | 레이어 명명, Service/Mapper, 공통컴포넌트 |
-| **합계** | **455** | **402** | |
+| spring | 32 | 28 | DI 패턴, @Transactional, REST API, 보안 |
+| egov | 33 | 12 | 레이어 명명, Service/Mapper, 공통컴포넌트 |
+| ddl | 17 | 17 | 테이블·컬럼 존재성, 인덱스 활용, DDL 개선 |
+| **합계** | **535** | **453** | |
 
 > **활성 규칙**: `enabled: true`인 규칙만 검사에 적용됩니다. 비활성 규칙은 다른 프로파일과 중복되어 `enabled: false`로 설정된 것입니다.
