@@ -128,6 +128,21 @@ cd apex-linux-amd64
 ./apex ./src --profile=essential
 ```
 
+## Known issues
+
+**On macOS, the folder picker closes immediately in fullscreen.** Pressing
+Browse while the window is fullscreen opens the picker and dismisses it at once.
+We have not identified the cause yet. For now, **pick the folder in windowed
+mode and then go fullscreen** — or paste the path into the field directly.
+
+**The macOS binaries are not code-signed.** The first launch reports the app as
+damaged. Run `xattr -dr com.apple.quarantine .` once in the folder you
+extracted.
+
+**The desktop app's interface is Korean only.** The CLI follows `--lang=en|ko`.
+
+**There is no desktop build for Linux.** On Linux, APEX is the CLI.
+
 ## Get started
 
 ### With the desktop app
@@ -366,11 +381,47 @@ its permissions, and refuses to overwrite a file that changed on disk while you
 were editing it. Cross-file rules are skipped in the single-file re-check
 because they need the whole project; the screen says so.
 
+### When results go stale
+
+Turning a rule off, changing a severity, or editing a source file makes the
+results on screen out of date. A line appears above the Results, Reports and
+AI audit screens saying so, with **Rescan** next to it.
+
+Nothing is recomputed automatically. On a large project, pausing for seconds
+every time you toggle a rule makes the rules impossible to tune. The point is
+to stop you building a report from numbers that no longer hold.
+
+### Moving between screens
+
+A screen you entered by pressing a button carries a way back. Opening an issue
+in the code view puts `← Back to results · secure-plain-001` at the top, and it
+returns you to the issue list with your filters intact.
+
+Screens you reach from the sidebar do not show it — that is going somewhere,
+not coming back. Visited screens are tracked separately: `Ctrl/Cmd+[` and
+`Ctrl/Cmd+]` move through them.
+
+Drilling into the issue list from the dashboard shows the active filter as a
+chip you can clear with `✕`.
+
 ### Editing rules without leaving the app
 
 The Rules tab's form only builds simple regex rules. For everything else —
 `regex-multiline`, the `ast-*` family, exclusions — open **Ruleset file edit**
 and change the YAML directly.
+
+Pressing `</>` on a built-in rule opens the ruleset file that defines it, at
+that line.
+
+When you build a custom rule in the form you choose **what the pattern looks
+at**: *one line* examines each line separately, *multi-line* reads the file as a
+whole. A rule whose annotation and declaration sit on different lines only
+matches as multi-line. Exclusions (skip comment lines, say) and the fix note
+shown with each finding are part of the form too.
+
+The regex tester judges exactly as the scan engine does, for the type you
+picked. A pattern that matches in the tester will not come back empty in the
+scan.
 
 The editor validates before it saves, using the same loader the CLI uses and the
 same regex compiler the rule engine uses. Duplicate rule IDs, invalid
