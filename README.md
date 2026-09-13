@@ -57,10 +57,10 @@ cut-down version of the other, and you are not meant to pick one forever.
 
 |  | Desktop app (`apex-gui`) | CLI (`apex`) |
 |---|---|---|
-| Suited to | exploring a codebase, deciding which rules apply, producing a report to hand over | CI pipelines, scheduled scans, scripted batches |
+| Suited to | exploring a codebase, fixing what you find, deciding which rules apply, producing a report to hand over | CI pipelines, scheduled scans, scripted batches |
 | Platforms | Windows x64, macOS (Apple Silicon / Intel) | Windows, macOS, Linux — x64, ARM64, x86 |
 | Reports | Excel, HTML, JSON, AI audit report, DOCX | Console, Excel, HTML, JSON, AI audit report, DOCX |
-| Rule tuning | click a toggle, test a regex live | YAML file, CLI flags |
+| Rule tuning | click a toggle, test a regex live, edit the ruleset YAML with validation | YAML file, CLI flags |
 
 The two are joined by one file. **A rule selection saved in the desktop app is
 the same YAML the CLI reads**, so a decision made once by a person is what
@@ -142,9 +142,12 @@ cd apex-linux-amd64
    change a severity, or add a custom rule as a regex, testing it against a
    sample before saving. **Save the snapshot to a YAML file** — this is the
    file CI will use.
-4. **Reports** (`Ctrl/Cmd+4`) — export Excel, HTML or JSON. Excel is the usual
+4. **Code** (`Ctrl/Cmd+4`) — browse the project and read the source with
+   syntax highlighting. Press **Edit** to fix something; saving re-checks that
+   one file immediately.
+5. **Reports** (`Ctrl/Cmd+5`) — export Excel, HTML or JSON. Excel is the usual
    handover format; JSON is the input to the AI audit report.
-5. **AI audit** (`Ctrl/Cmd+5`) — generate an audit report through an
+6. **AI audit** (`Ctrl/Cmd+6`) — generate an audit report through an
    OpenAI-compatible endpoint, with air-gapped mode available. See
    [AI audit report](#ai-audit-report).
 
@@ -343,11 +346,41 @@ apex ai-report [scan.json]          AI audit report from a scan JSON
 | Tab | Shortcut | What it does |
 |---|---|---|
 | Scan | `Ctrl/Cmd+1` | Source folder, profiles, minimum severity, DDL cross-analysis; run, cancel, progress |
-| Rules | `Ctrl/Cmd+2` | Enable/disable rules, change severity, add custom regex rules with a live tester, save and load snapshots |
+| Rules | `Ctrl/Cmd+2` | Enable/disable rules, change severity, add custom regex rules with a live tester, save and load snapshots, **edit ruleset YAML in place** |
 | Results | `Ctrl/Cmd+3` | Metrics dashboard with grades, issue list, open a file at the offending line |
-| Reports | `Ctrl/Cmd+4` | Export Excel / HTML / JSON, recent exports |
-| AI audit | `Ctrl/Cmd+5` | Endpoint and model, connection test, air-gapped mode, progress, cancel |
-| Settings | `Ctrl/Cmd+6` | Application preferences |
+| Code | `Ctrl/Cmd+4` | **Browse the project, read and edit source with syntax highlighting, re-check the file you just fixed** |
+| Reports | `Ctrl/Cmd+5` | Export Excel / HTML / JSON, recent exports |
+| AI audit | `Ctrl/Cmd+6` | Endpoint and model, connection test, air-gapped mode, progress, cancel |
+| Settings | `Ctrl/Cmd+7` | Application preferences |
+
+### Reading and editing code
+
+APEX ships its own editor, so you do not need to bring one to the site. Click an
+issue and **Open in code** takes you to that file at that line, with every issue
+in the file marked in the gutter. Press **Edit** to make a change, save with
+`Ctrl/Cmd+S`, and APEX re-checks that one file immediately — a full re-scan of a
+large project is not needed to see whether the fix took.
+
+Saving preserves the file's original line endings and trailing newline, keeps
+its permissions, and refuses to overwrite a file that changed on disk while you
+were editing it. Cross-file rules are skipped in the single-file re-check
+because they need the whole project; the screen says so.
+
+### Editing rules without leaving the app
+
+The Rules tab's form only builds simple regex rules. For everything else —
+`regex-multiline`, the `ast-*` family, exclusions — open **Ruleset file edit**
+and change the YAML directly.
+
+The editor validates before it saves, using the same loader the CLI uses and the
+same regex compiler the rule engine uses. Duplicate rule IDs, invalid
+severities, and patterns that will not compile are marked with line numbers, and
+a file that fails validation is not written. The previous content is kept as a
+`.bak` next to it.
+
+**Export custom rules** writes the rules you made in the app to
+`configs/rulesets/custom.yaml` and registers a `custom` profile, so
+`apex ./src --profile=custom` runs exactly the same rules in CI.
 
 ## GitHub Action
 
