@@ -1,18 +1,19 @@
-# APEX 퀵스타트 — 데스크톱 앱과 CLI
+# APEX quick start — the desktop app and the CLI
 
-APEX는 같은 룰 엔진 위에 데스크톱 앱과 명령행 도구를 얹은 구조입니다. 처음
-보는 프로젝트를 훑고 적용할 규칙을 정할 때는 앱이 빠르고, 그 결정을 매 빌드마다
-반복하는 건 CLI가 합니다. 둘은 규칙 스냅샷 파일 하나로 이어집니다(4장).
+APEX is a desktop app and a command-line tool over the same rule engine. The app
+is the faster way to look through a codebase you have not seen before and decide
+which rules apply; the CLI is what repeats that decision on every build. One
+file joins them: a rule snapshot (section 4).
 
 ---
 
-## 1. 설치
+## 1. Install
 
-### 받을 파일
+### What to download
 
-압축만 풀면 끝입니다. JVM도 Node.js도 파이썬도 설치할 필요가 없습니다.
+Unzip and you are done. No JVM, no Node.js, no Python.
 
-| 플랫폼 | 파일 | 들어 있는 것 |
+| Platform | File | Contains |
 |---|---|---|
 | Windows x64 | `apex-windows-amd64.zip` | `apex.exe`, `apex-gui.exe`, `apex-report.exe` |
 | macOS Apple Silicon | `apex-darwin-arm64.tar.gz` | `apex`, `apex-gui`, `apex-report` |
@@ -20,18 +21,20 @@ APEX는 같은 룰 엔진 위에 데스크톱 앱과 명령행 도구를 얹은 
 | Linux x64 / ARM64 / x86 | `apex-linux-*.tar.gz` | `apex` |
 | Windows x86 | `apex-windows-386.zip` | `apex.exe` |
 
-데스크톱 앱만 필요하면 `apex-gui-windows-amd64.exe`, `apex-gui-darwin-arm64`,
-`apex-gui-darwin-amd64` 가 단독 파일로도 올라갑니다.
+If you only want the desktop app, it is published on its own as
+`apex-gui-windows-amd64.exe`, `apex-gui-darwin-arm64` and
+`apex-gui-darwin-amd64`.
 
-> **Linux용 데스크톱 앱은 없습니다.** Wails가 빌드 시점에 GTK·WebKit을
-> 요구하는데 아직 제공하지 않습니다. Linux에서 APEX는 CLI입니다.
+> **There is no desktop build for Linux.** Wails needs GTK and WebKit at build
+> time and we do not ship that yet. On Linux, APEX is the CLI.
 
 ### Windows
 
-압축을 풀고 `apex-gui.exe` 를 더블클릭합니다. 화면은 Microsoft WebView2
-런타임으로 그리는데 Windows 11과 최근 Windows 10에는 기본으로 들어 있습니다.
-오래된 장비라면 [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)을
-먼저 설치하세요.
+Unzip and double-click `apex-gui.exe`. The interface renders through the
+Microsoft WebView2 runtime, which ships with Windows 11 and with current
+Windows 10. On an older machine, install
+[WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)
+first.
 
 ### macOS
 
@@ -39,8 +42,8 @@ APEX는 같은 룰 엔진 위에 데스크톱 앱과 명령행 도구를 얹은 
 tar -xzf apex-darwin-arm64.tar.gz
 cd apex-darwin-arm64
 
-# 코드 서명을 아직 하지 않아 Gatekeeper가 격리합니다.
-# 이 줄을 건너뛰면 "손상된 앱"이라고 뜹니다.
+# The binaries are not code-signed yet, so Gatekeeper quarantines them.
+# Skip this line and macOS reports the app as damaged.
 xattr -dr com.apple.quarantine .
 
 ./apex-gui
@@ -54,166 +57,187 @@ cd apex-linux-amd64
 ./apex --version
 ```
 
-### 배포 구조
+### What is in the bundle
 
 ```
 apex[.exe]                 ← CLI
-apex-gui[.exe]             ← 데스크톱 앱 (Windows / macOS)
-apex-report[.exe]          ← DOCX 감리 보고서 생성기 (Windows / macOS)
+apex-gui[.exe]             ← desktop app (Windows / macOS)
+apex-report[.exe]          ← DOCX audit report generator (Windows / macOS)
 configs/
-├── profiles.yaml          ← 프로파일 정의
+├── profiles.yaml          ← profile definitions
 └── rulesets/
-    ├── quality.yaml       ← 코드 품질 (125 규칙)
-    ├── secure.yaml        ← 시큐어코딩 (131 규칙)
-    ├── sql.yaml           ← ANSI SQL (120 규칙)
-    ├── sql-oracle.yaml    ← Oracle 전용 (20 규칙)
-    ├── sql-format.yaml    ← SQL 포맷 (7 규칙)
-    ├── modernize.yaml     ← 레거시 현대화 (50 규칙)
-    ├── spring.yaml        ← Spring 표준 (32 규칙)
-    ├── egov.yaml          ← 전자정부 표준 (33 규칙)
-    └── ddl.yaml           ← DDL × 쿼리 교차 분석 (17 규칙)
+    ├── quality.yaml       ← code quality (125 rules)
+    ├── secure.yaml        ← secure coding (131 rules)
+    ├── sql.yaml           ← ANSI SQL (120 rules)
+    ├── sql-oracle.yaml    ← Oracle specifics (20 rules)
+    ├── sql-format.yaml    ← SQL formatting (7 rules)
+    ├── modernize.yaml     ← legacy modernization (50 rules)
+    ├── spring.yaml        ← Spring conventions (32 rules)
+    ├── egov.yaml          ← eGovernment Framework standards (33 rules)
+    └── ddl.yaml           ← DDL × query cross-analysis (17 rules)
 ```
 
-바이너리와 `configs/` 폴더만 있으면 동작합니다.
+The binary and the `configs/` folder next to it are all it needs.
 
 ---
 
-## 2. 데스크톱 앱으로 5분
+## 2. Five minutes with the desktop app
 
-앱을 띄우면 왼쪽에 탭 여섯 개가 있습니다. `Ctrl/Cmd` + 숫자로도 이동합니다.
+The app opens with seven tabs down the left. `Ctrl/Cmd` + a number moves between
+them.
 
-**① 점검** (`Ctrl/Cmd+1`)
+**① Scan** (`Ctrl/Cmd+1`)
 
-[찾아보기]로 소스 폴더를 고르고, 돌릴 프로파일을 체크하고, 최소 심각도를
-정한 다음 실행합니다. DDL 파일이나 폴더를 지정하면 SQL 교차 분석이 함께
-돕니다(선택). 진행률이 나오고 도중에 취소할 수 있습니다.
+Pick the source folder with **Browse**, check the profiles to run, set a minimum
+severity, and press Run. Point at a DDL file or folder and SQL cross-analysis
+runs too (optional). Progress is shown and the scan can be cancelled.
 
-**② 결과** (`Ctrl/Cmd+3`)
+**② Results** (`Ctrl/Cmd+3`)
 
-지표와 등급 대시보드가 먼저 보이고 그 아래가 이슈 목록입니다. 이슈를 누르면
-해당 파일의 그 줄이 열립니다.
+A dashboard of metrics and grades first, the issue list below it. Click an issue
+and the file opens at that line.
 
-**③ 규칙** (`Ctrl/Cmd+2`)
+**③ Rules** (`Ctrl/Cmd+2`)
 
-이 프로젝트에 안 맞는 규칙을 끄고, 심각도를 조정합니다. 팀 규약을 정규식
-커스텀 규칙으로 추가할 수도 있는데, 저장 전에 샘플 코드로 매치를 확인할 수
-있습니다. 조정이 끝나면 **스냅샷을 YAML로 저장해 두세요.** 4장에서 CLI가 쓸
-파일이 이겁니다.
+Turn off rules that do not fit this project and adjust severities. You can add a
+team convention as a custom regex rule, testing it against sample code before
+you save. When you are done, **save the snapshot as YAML** — that is the file
+the CLI reads in section 4.
 
-커스텀 규칙을 만들 때 **패턴이 보는 단위**를 고릅니다 — [한 줄]은 각 줄을
-따로, [여러 줄]은 파일 전체를 이어서 봅니다. 어노테이션과 선언이 떨어져 있는
-규칙은 [여러 줄]이라야 잡힙니다. 제외 패턴과 수정 안내도 폼에 있습니다.
+When you build a custom rule you choose **what the pattern looks at**: *per
+line* examines each line separately, *whole file* reads the file as one string.
+A rule whose annotation and declaration sit on different lines only matches as
+whole-file. Exclusions and the fix hint shown with each finding are on the form
+too.
 
-`ast-*` 계열처럼 폼으로 안 되는 타입은 [룰셋 파일 편집]에서 YAML을 직접
-고칩니다. 저장 전에 실제 파서로 검증하므로 깨진 룰셋이 저장되지 않습니다(5장).
-내장 규칙은 `</>` 를 누르면 정의된 자리로 바로 갑니다.
+Types the form cannot build — the `ast-*` family, for instance — are written
+directly in **Edit ruleset files**. The editor validates with the real parser
+before saving, so a broken ruleset is never written (section 5). Press `</>` on
+a built-in rule to jump to where it is defined.
 
-**④ 코드** (`Ctrl/Cmd+4`)
+**④ Code** (`Ctrl/Cmd+4`)
 
-프로젝트를 탐색하고 소스를 봅니다. 이슈 상세의 [코드에서 열기]를 누르면 그
-파일의 그 줄이 열리고, 같은 파일의 이슈가 여백에 표시됩니다. [편집]을 누르고
-고친 뒤 `Ctrl/Cmd+S` 로 저장하면 **그 파일만** 즉시 다시 검사합니다. 편집기가
-앱에 들어 있어 현장에 별도 편집기를 반입하지 않아도 됩니다.
+Browse the project and read the source. **Open in code** on an issue opens that
+file at that line, with every issue in the file marked in the gutter. Press
+**Edit**, fix it, and save with `Ctrl/Cmd+S` — APEX re-checks **that one file**
+immediately. The editor is part of the app, so you do not have to bring one to
+the site.
 
-**⑤ 보고서** (`Ctrl/Cmd+5`)
+**⑤ Export** (`Ctrl/Cmd+5`)
 
-Excel, HTML, JSON으로 내보냅니다. 기관이나 개발사에 넘길 때는 보통 Excel을,
-AI 감리 보고서의 입력으로는 JSON을 씁니다.
+Excel, HTML or JSON. Excel is the usual format to hand to a client or a vendor;
+JSON is the input to the AI audit report.
 
-> 규칙이나 소스를 바꾸면 이미 나온 결과는 낡습니다. 결과·보고서·AI 감리 화면
-> 위에 그 사실이 표시되고 [다시 점검] 이 함께 나옵니다. 낡은 결과로 보고서를
-> 만드는 일을 막기 위한 것입니다.
+> Change a rule or edit a source file and the results you are looking at are out
+> of date. A line saying so appears above the Results, Export and AI audit
+> screens, with **Rescan** next to it. It is there to stop you building a report
+> from numbers that no longer hold.
 
-**⑥ AI 감리** (`Ctrl/Cmd+6`)
+**⑥ AI audit** (`Ctrl/Cmd+6`)
 
-엔드포인트와 모델을 넣고 [연결 확인]으로 서버가 응답하는지 본 뒤 생성합니다.
-폐쇄망 모드는 체크박스이고, 켜면 루프백 밖으로 나가는 연결을 전부 차단한 채로
-만듭니다. 사내 Ollama·vLLM 서버면 충분합니다.
+Enter the endpoint and model, press **Test connection** to confirm the server
+answers, then generate. Air-gapped mode is a checkbox; with it on, every
+connection that leaves loopback is blocked while the report is written. An
+in-house Ollama or vLLM server is enough.
+
+**⑦ Settings** (`Ctrl/Cmd+7`)
+
+Interface language, theme, and the defaults used on the AI audit tab. The app is
+English by default; Korean is one of the languages you can pick here.
 
 ---
 
-## 3. 명령행으로 5분
+## 3. Five minutes with the command line
 
-### 기본 실행
+### Basic runs
 
 ```bash
-# 전체 검사
+# Everything
 ./apex /path/to/project --profile=all
 
-# 코드 품질 + 시큐어코딩만
+# Code quality and secure coding only
 ./apex /path/to/project --profile=essential
 
-# 전자정부프레임워크 프로젝트 전용
+# For an eGovernment Framework project
 ./apex /path/to/project --profile=egov-full
 
-# 레거시 마이그레이션 진단
+# Legacy migration assessment
 ./apex /path/to/project --profile=migration
 
-# DDL × 쿼리 교차 분석
+# DDL × query cross-analysis
 ./apex /path/to/project --profile=sql-ddl --ddl=./ddl/
 ```
 
-### 프로파일 목록
+### Profiles
 
-| 프로파일 | 설명 | 규칙 수 | 기본 활성 |
-|----------|------|---------|-----------|
-| `quality` | 코드 품질, 명명규칙, 복잡도 | 125 | 107 |
-| `secure` | SQL Injection, XSS, 암호화, 인증 | 131 | 123 |
-| `sql` | ANSI SQL 공통 (DB 벤더 무관) | 120 | 102 |
-| `sql-oracle` | Oracle 전용 (NVL, 힌트, ROWNUM) | 20 | 18 |
-| `sql-format` | SQL 포맷·스타일 | 7 | 7 |
-| `modernize` | eGov/javax/iBatis/Spring 전환 | 50 | 39 |
-| `spring` | DI, @Transactional, Controller | 32 | 28 |
-| `egov` | 전자정부 계층/명명/공통 컴포넌트 | 33 | 12 |
-| `ddl` | DDL × 쿼리 교차 분석 (`--ddl` 필요) | 17 | 17 |
-| | **합계** | **535** | **453** |
+| Profile | What it covers | Rules | On by default |
+|---------|----------------|-------|---------------|
+| `quality` | Code quality, naming, complexity | 125 | 107 |
+| `secure` | SQL injection, XSS, crypto, authentication | 131 | 123 |
+| `sql` | ANSI SQL, vendor independent | 120 | 102 |
+| `sql-oracle` | Oracle specifics (NVL, hints, ROWNUM) | 20 | 18 |
+| `sql-format` | SQL formatting and style | 7 | 7 |
+| `modernize` | eGov / javax / iBatis / Spring migration | 50 | 39 |
+| `spring` | DI, `@Transactional`, controllers | 32 | 28 |
+| `egov` | eGovernment layering, naming, common components | 33 | 12 |
+| `ddl` | DDL × query cross-analysis (needs `--ddl`) | 17 | 17 |
+| | **Total** | **535** | **453** |
 
-일부 규칙은 꺼진 채로 배포합니다. 결함이 아니라 팀 취향에 가까운 항목이라
-그렇고, 대부분 SQL 포맷과 전자정부 관례입니다. 규칙 탭이나 오버라이드 파일에서
-켜면 됩니다.
+Some rules ship switched off. They encode a team preference rather than a
+defect — mostly SQL formatting and eGovernment conventions. Turn them on in the
+Rules tab or in an overrides file.
 
-### 프로파일 그룹
+### Profile groups
 
-| 그룹 | 포함 | 용도 |
-|------|------|------|
-| `all` | quality, secure, sql, sql-oracle, sql-format, modernize, spring, egov | 전체 검사 |
-| `essential` | quality, secure | 필수 점검 |
-| `sql-all` | sql, sql-oracle, sql-format | SQL 전반 |
-| `sql-ddl` | sql, sql-oracle, ddl | SQL + 스키마 교차 |
-| `egov-full` | quality, secure, sql, sql-oracle, sql-format, egov, spring | 전자정부 프로젝트 |
-| `migration` | modernize, spring | 레거시 전환 진단 |
+| Group | Includes | For |
+|-------|----------|-----|
+| `all` | quality, secure, sql, sql-oracle, sql-format, modernize, spring, egov | everything |
+| `essential` | quality, secure | the must-haves |
+| `sql-all` | sql, sql-oracle, sql-format | SQL in general |
+| `sql-ddl` | sql, sql-oracle, ddl | SQL plus schema cross-checks |
+| `egov-full` | quality, secure, sql, sql-oracle, sql-format, egov, spring | eGovernment projects |
+| `migration` | modernize, spring | legacy migration assessment |
 
-`./apex profiles` 를 치면 지금 쓰는 바이너리 기준 목록이 나옵니다.
+Run `./apex profiles` to list them from the binary you have.
 
-### 리포트 출력
+### Report formats
 
 ```bash
-# 콘솔 (기본)
+# Console (default)
 ./apex /path/to/project --profile=all
 
-# Excel — 기관 제출용
+# Excel — what usually gets handed over
 ./apex /path/to/project --profile=all -o excel --output-file=report.xlsx
 
-# JSON — CI/자동화 연동, AI 감리 보고서 입력
+# JSON — for CI, and as the input to the AI audit report
 ./apex /path/to/project --profile=all -o json --output-file=report.json
 
-# HTML — 웹 공유
+# HTML — to share in a browser
 ./apex /path/to/project --profile=all -o html --output-file=report.html
 ```
 
-### 심각도 필터
+### Filtering by severity
 
 ```bash
-# high 이상만 출력
+# High and above
 ./apex /path/to/project --profile=all --min-severity=high
 
-# critical만 출력
+# Critical only
 ./apex /path/to/project --profile=all --min-severity=critical
 ```
 
-### AI 감리 보고서
+### Output language
 
-점검 JSON을 먼저 만든 뒤 두 번째 명령으로 보고서를 만듭니다.
+Both front ends default to English. The CLI takes `--lang` (`en` / `ko`), or the
+`APEX_LANG` environment variable; your system locale is not consulted.
+
+```bash
+./apex /path/to/project --profile=all --lang=ko
+```
+
+### AI audit report
+
+Produce the scan JSON first, then build the report from it.
 
 ```bash
 ./apex /path/to/project --profile=all -o json --output-file=scan.json
@@ -221,37 +245,39 @@ AI 감리 보고서의 입력으로는 JSON을 씁니다.
 ./apex ai-report scan.json --offline \
   --endpoint http://127.0.0.1:11434/v1 \
   --model qwen2.5-coder:7b \
-  --project "OO시스템" \
+  --project "Example System" \
   -o report.html
 ```
 
-`--offline` 은 루프백이 아닌 목적지를 해석된 IP에서 거부하고 DNS 해석 자체를
-막습니다. 지정한 엔드포인트가 외부 주소면 명령이 그 이유를 밝히며 실패합니다.
+`--offline` refuses any destination that is not loopback, checked at the
+resolved IP, and blocks DNS resolution outright. If the endpoint you gave is
+external, the command fails and says why.
 
 ---
 
-## 4. 규칙 스냅샷 — 앱에서 정하고 CLI로 반복
+## 4. Rule snapshots — decide in the app, repeat in CI
 
-데스크톱 앱 규칙 탭에서 저장한 스냅샷은 CLI가 읽는 바로 그 YAML입니다. 사람이
-한 번 내린 판단을 이후 모든 자동 실행이 그대로 따르게 하는 게 목적입니다.
+The snapshot you save in the desktop app's Rules tab is the very YAML the CLI
+reads. The point is that a judgement a person makes once is what every later
+automated run follows.
 
 ```
-데스크톱 앱 · 규칙 탭            ruleset.yaml            CI · 매 빌드
- 규칙 켜고 끄고 심각도 조정  ──▶   스냅샷 저장   ──▶   --overrides ruleset.yaml
+Desktop app · Rules tab             ruleset.yaml            CI · every build
+ toggle rules, set severities  ──▶   save snapshot   ──▶   --overrides ruleset.yaml
 ```
 
-**① 앱에서 저장** — 규칙 탭에서 조정한 뒤 스냅샷 저장. `ruleset.yaml` 이
-나옵니다. 저장소에 커밋해 두세요.
+**① Save it in the app** — adjust things in the Rules tab, then save the
+snapshot. You get `ruleset.yaml`. Commit it.
 
-**② CLI에서 사용**
+**② Use it from the CLI**
 
 ```bash
 ./apex /path/to/project --profile=all --overrides=ruleset.yaml \
   -o excel --output-file=report.xlsx
 ```
 
-**③ 반대 방향도 됩니다.** 명령행에서 조정한 결과를 파일로 떨어뜨려 앱에서
-불러올 수 있습니다.
+**③ It works the other way too.** Tune on the command line and write the result
+to a file the app can load.
 
 ```bash
 ./apex /path/to/project --profile=all \
@@ -260,101 +286,102 @@ AI 감리 보고서의 입력으로는 JSON을 씁니다.
   --save-overrides=ruleset.yaml
 ```
 
-`--save-overrides` 는 필터까지 적용된 **최종 규칙 집합**을 씁니다. 같은 상태를
-`--overrides` 로 언제든 재현할 수 있습니다.
+`--save-overrides` writes the **effective rule set**, filters included. You can
+reproduce the same state at any time with `--overrides`.
 
 ---
 
-## 5. 커스텀 규칙 추가
+## 5. Adding custom rules
 
-데스크톱 앱 규칙 탭에서도 같은 일을 합니다. 정규식을 넣고 샘플 코드로 매치를
-확인한 뒤 저장하면 끝이고, 파일 위치를 신경 쓸 필요가 없습니다. 아래는 YAML을
-직접 쓰는 방법으로, 규칙을 저장소에 커밋해 팀 전체가 공유할 때 씁니다.
+The Rules tab does the same thing: type a regex, confirm the match against
+sample code, save, and you never think about where the file lives. What follows
+is the YAML route, which is what you use to commit rules to the repository so
+the whole team shares them.
 
-### 5.1 어디에 추가?
-
-```
-configs/rulesets/quality.yaml    ← 기존 파일에 추가 (간단)
-configs/rulesets/custom.yaml     ← 새 파일 생성 (규칙이 많을 때)
-```
-
-### 5.2 패턴 타입 선택 (의사결정 트리)
+### 5.1 Where to put them
 
 ```
-한 줄에서 찾을 수 있는가?
+configs/rulesets/quality.yaml    ← add to an existing file (simplest)
+configs/rulesets/custom.yaml     ← a new file (when there are many rules)
+```
+
+### 5.2 Choosing a pattern type
+
+```
+Can it be found within one line?
 ├── YES → type: "regex"
 │
-└── NO → 여러 줄에 걸치는가?
+└── NO → Does it span several lines?
     ├── YES → type: "regex-multiline"
     │
-    └── Java 구조 분석이 필요한가?
-        ├── import 검사 → "ast-import"
-        ├── 루프 내 메서드 호출 → "ast-method-call"
-        ├── 어노테이션 속성 → "ast-annotation"
-        ├── 변수/필드 타입 → "ast-variable"
-        ├── try-catch 구조 → "ast-try-catch"
-        ├── 클래스 메서드 수 → "ast-class"
-        └── 메서드 복잡도/길이 → "ast-method"
+    └── Do you need Java structure?
+        ├── imports            → "ast-import"
+        ├── calls inside loops → "ast-method-call"
+        ├── annotation attrs   → "ast-annotation"
+        ├── variable/field type→ "ast-variable"
+        ├── try-catch shape    → "ast-try-catch"
+        ├── methods per class  → "ast-class"
+        └── method complexity  → "ast-method"
 ```
 
-### 5.3 현장에서 가장 많이 쓰는 5가지
+### 5.3 The five you will write most often
 
-#### (1) 특정 API/메서드 금지
+#### (1) Banning a specific API or method
 
 ```yaml
 - id: "custom-001"
-  name: "System.exit() 사용 금지"
+  name: "System.exit() prohibited"
   severity: "critical"
   category: "security"
-  description: "System.exit()는 서버 프로세스를 종료시킵니다"
+  description: "System.exit() kills the server process"
   enabled: true
   pattern:
     type: "regex"
     regex: "System\\.exit\\s*\\("
   custom:
-    fix: "예외를 throw하거나 Spring의 정상 종료 메커니즘을 사용하세요"
+    fix: "Throw an exception, or use Spring's shutdown mechanism"
 ```
 
-#### (2) 금지 라이브러리 import
+#### (2) Banning a library import
 
 ```yaml
 - id: "custom-002"
-  name: "프로젝트 금지 라이브러리"
+  name: "Library not approved for this project"
   severity: "high"
   category: "architecture"
-  description: "승인되지 않은 라이브러리입니다"
+  description: "This library has not been approved"
   enabled: true
   pattern:
     type: "ast-import"
     import: "^com\\.alibaba\\.fastjson\\."
   custom:
-    fix: "Jackson 또는 Gson을 사용하세요"
+    fix: "Use Jackson or Gson"
 ```
 
-#### (3) 어노테이션 + 메서드 조합 (다른 줄)
+#### (3) An annotation plus a method, on different lines
 
 ```yaml
 - id: "custom-003"
-  name: "DELETE 메서드 접두사"
+  name: "DELETE method prefix"
   severity: "medium"
   category: "naming"
-  description: "DELETE 메서드는 delete/remove로 시작해야 합니다"
+  description: "A DELETE handler must start with delete or remove"
   enabled: true
   pattern:
     type: "regex-multiline"
     regex: "@DeleteMapping.*\\n\\s*public\\s+\\w+\\s+(?!(delete|remove)\\w+)([a-z]\\w+)\\s*\\("
   custom:
-    fix: "delete* 또는 remove* 접두사를 사용하세요"
+    fix: "Use a delete* or remove* prefix"
 ```
 
-#### (4) 루프 내 위험 호출
+#### (4) A risky call inside a loop
 
 ```yaml
 - id: "custom-004"
-  name: "루프 내 DB 조회"
+  name: "Database read inside a loop"
   severity: "high"
   category: "performance"
-  description: "루프에서 DB 조회 시 N+1 문제 발생"
+  description: "Reading from the database in a loop causes the N+1 problem"
   enabled: true
   pattern:
     type: "ast-method-call"
@@ -362,29 +389,29 @@ configs/rulesets/custom.yaml     ← 새 파일 생성 (규칙이 많을 때)
     qualifier: ".*(?i)(mapper|dao|repository)"
     context: "inside-loop"
   custom:
-    fix: "IN절 배치 조회 또는 JOIN으로 변경하세요"
+    fix: "Batch the reads with an IN clause, or use a JOIN"
 ```
 
-#### (5) 클래스 크기 제한
+#### (5) Limiting class size
 
 ```yaml
 - id: "custom-005"
-  name: "Service 클래스 과대"
+  name: "Service class too large"
   severity: "medium"
   category: "design"
-  description: "Service 메서드가 30개를 초과합니다"
+  description: "The Service has more than 30 methods"
   enabled: true
   pattern:
     type: "ast-class"
     name_pattern: ".*ServiceImpl$"
   custom:
     max_methods: 30
-    fix: "도메인별로 Service를 분리하세요"
+    fix: "Split the Service along domain lines"
 ```
 
-### 5.4 새 룰셋 파일로 만들기
+### 5.4 Creating a new ruleset file
 
-**① 파일 생성**: `configs/rulesets/custom.yaml`
+**① Create the file**: `configs/rulesets/custom.yaml`
 
 ```yaml
 version: "1.0"
@@ -394,39 +421,39 @@ languages:
   - language: java
     rules:
       - id: "custom-001"
-        name: "규칙 이름"
+        name: "rule name"
         severity: "high"
-        category: "카테고리"
-        description: "설명"
+        category: "category"
+        description: "description"
         enabled: true
         pattern:
           type: "regex"
-          regex: "패턴"
+          regex: "pattern"
         custom:
-          fix: "해결방법"
+          fix: "how to fix it"
 
   - language: xml
     rules:
       - id: "custom-xml-001"
-        name: "XML 규칙"
+        name: "XML rule"
         # ...
 
   - language: sql
     rules:
       - id: "custom-sql-001"
-        name: "SQL 규칙"
+        name: "SQL rule"
         # ...
 ```
 
-**② 프로파일 등록**: `configs/profiles.yaml`
+**② Register the profile**: `configs/profiles.yaml`
 
 ```yaml
 profiles:
-  # ... 기존 프로파일 ...
+  # ... existing profiles ...
 
   custom:
-    name: "프로젝트 맞춤 규칙"
-    description: "프로젝트 고유 코딩 표준"
+    name: "Project rules"
+    description: "This project's own coding standards"
     ruleset: "rulesets/custom.yaml"
     languages:
       - java
@@ -442,48 +469,52 @@ groups:
       - modernize
       - spring
       - egov
-      - custom          # ← 추가
+      - custom          # ← added
 ```
 
-**③ 실행**
+**③ Run it**
 
 ```bash
-./apex /path/to/project --profile=custom          # 커스텀만
-./apex /path/to/project --profile=quality,custom   # 품질 + 커스텀
-./apex /path/to/project --profile=all              # 전체 (custom 포함)
+./apex /path/to/project --profile=custom           # custom only
+./apex /path/to/project --profile=quality,custom   # quality plus custom
+./apex /path/to/project --profile=all              # everything, custom included
 ```
+
+> The app can do step ① and ② for you: **Export custom rules** in the ruleset
+> editor writes the rules you built in the app to `configs/rulesets/custom.yaml`
+> and registers the `custom` profile.
 
 ---
 
-## 6. 규칙 오버라이드
+## 6. Overriding rules
 
-프로젝트별로 기존 규칙의 심각도를 변경하거나 비활성화할 수 있습니다. 데스크톱
-앱 규칙 탭에서 토글로 조정한 뒤 스냅샷을 저장해도 같은 형식의 파일이 나옵니다
-(4장). 아래는 그 파일을 손으로 쓰는 방법입니다.
+You can change the severity of an existing rule, or switch it off, per project.
+Toggling in the desktop app's Rules tab and saving a snapshot produces a file in
+this same format (section 4). What follows is how to write it by hand.
 
-> 필드 이름은 `id` 입니다. `rule_id` 로 쓰면 오류 없이 조용히 무시되므로,
-> 규칙을 껐는데 그대로 검출된다면 이 항목부터 확인하세요.
+> The field is called `id`. Write `rule_id` and it is silently ignored with no
+> error — so if you switched a rule off and it still shows up, check this first.
 
-**① 오버라이드 파일 생성**: `configs/overrides.yaml`
+**① Create the overrides file**: `configs/overrides.yaml`
 
 ```yaml
 overrides:
-  # 심각도 변경
+  # Change a severity
   - id: "quality-nc-001"
-    severity: "low"              # high → low로 완화
+    severity: "low"              # relaxed from high
 
-  # 규칙 비활성화
+  # Switch a rule off
   - id: "sql-style-001"
-    enabled: false               # ANSI JOIN 허용
+    enabled: false               # ANSI JOIN is fine here
 
-  # 여러 규칙 일괄 비활성화
+  # Switch several off at once
   - id: "mod-java-001"
-    enabled: false               # new Date() 허용 (레거시 프로젝트)
+    enabled: false               # new Date() allowed (legacy project)
   - id: "mod-java-003"
-    enabled: false               # Calendar 허용
+    enabled: false               # Calendar allowed
 ```
 
-**② 실행**
+**② Run it**
 
 ```bash
 ./apex /path/to/project --profile=all --overrides=configs/overrides.yaml
@@ -491,7 +522,7 @@ overrides:
 
 ---
 
-## 7. CI/CD 연동
+## 7. CI/CD
 
 ### Jenkins
 
@@ -518,64 +549,65 @@ code-quality:
       - apex-report.*
 ```
 
-### 품질 게이트 (critical 이슈 시 빌드 실패)
+### A quality gate (fail the build on a critical issue)
 
 ```bash
-# APEX는 이슈 발견 시 exit code 1 반환
+# APEX exits 1 when it finds issues
 ./apex ./src --profile=essential --min-severity=critical
-# exit code 0 = 통과, 1 = critical 이슈 있음
+# exit 0 = clean, 1 = there are critical issues
 ```
 
 ---
 
-## 8. 정규식 작성 팁
+## 8. Writing the regexes
 
-### YAML 백슬래시 규칙
+### Backslashes in YAML
 
 ```yaml
-# ✅ 올바른 예 (백슬래시 2개)
+# ✅ correct — two backslashes
 regex: "System\\.out\\.print"
 regex: "\\bSELECT\\b"
 regex: "new\\s+Date\\s*\\("
 
-# ❌ 잘못된 예 (백슬래시 1개)
+# ❌ wrong — one backslash
 regex: "System\.out\.print"
 regex: "\bSELECT\b"
 ```
 
-### 자주 쓰는 정규식
+### The ones you will reach for
 
-| 패턴 | 의미 | 예시 |
-|------|------|------|
-| `\\.` | 리터럴 점 | `System\\.out` |
-| `\\s*` | 공백 0개 이상 | `메서드\\s*\\(` |
-| `\\s+` | 공백 1개 이상 | `new\\s+Date` |
-| `\\w+` | 단어 문자 1개 이상 | `class\\s+\\w+` |
-| `\\b` | 단어 경계 | `\\bSELECT\\b` |
-| `[^)]*` | `)` 아닌 모든 문자 | `\\([^)]*\\)` |
-| `(?!pattern)` | 부정 전방탐색 | `(?!select)\\w+` |
-| `(?i)` | 대소문자 무시 | `(?i)select` |
-| `[\\s\\S]*?` | 줄바꿈 포함 (비탐욕) | multiline 전용 |
+| Pattern | Meaning | Example |
+|---------|---------|---------|
+| `\\.` | a literal dot | `System\\.out` |
+| `\\s*` | zero or more spaces | `method\\s*\\(` |
+| `\\s+` | one or more spaces | `new\\s+Date` |
+| `\\w+` | one or more word characters | `class\\s+\\w+` |
+| `\\b` | word boundary | `\\bSELECT\\b` |
+| `[^)]*` | anything but `)` | `\\([^)]*\\)` |
+| `(?!pattern)` | negative lookahead | `(?!select)\\w+` |
+| `(?i)` | case-insensitive | `(?i)select` |
+| `[\\s\\S]*?` | anything including newlines, lazy | multiline only |
 
 ### regex vs regex-multiline
 
 ```yaml
-# regex: 한 줄에서 완결
+# regex: contained within one line
 regex: "@Autowired\\s*$"
 
-# regex-multiline: 여러 줄 걸침 (어노테이션 + 선언이 다른 줄)
+# regex-multiline: spans lines (annotation and declaration apart)
 type: "regex-multiline"
 regex: "@Controller[\\s\\S]*?class\\s+\\w+"
 ```
 
-> **핵심**: `\n` 또는 `[\s\S]`가 패턴에 있으면 반드시 `regex-multiline` 사용. `regex`에서는 절대 매칭 안 됨.
+> **The rule of thumb**: if your pattern contains `\n` or `[\s\S]`, it must be
+> `regex-multiline`. It will never match under `regex`.
 
 ---
 
-## 9. 지원 언어별 패턴 타입
+## 9. Pattern types by language
 
-| 언어 | regex | regex-multiline | ast-* (7종) | annotation-missing-attr |
-|------|-------|-----------------|-------------|------------------------|
+| Language | regex | regex-multiline | ast-* (7 kinds) | annotation-missing-attr |
+|----------|-------|-----------------|-----------------|-------------------------|
 | Java | ✅ | ✅ | ✅ | ✅ |
 | JavaScript | ✅ | ✅ | ❌ | ❌ |
 | HTML | ✅ | ✅ | ❌ | ❌ |
@@ -584,44 +616,45 @@ regex: "@Controller[\\s\\S]*?class\\s+\\w+"
 | XML | ✅ | ✅ | ❌ | ❌ |
 | Properties | ✅ | ✅ | ❌ | ❌ |
 
-> AST 패턴(`ast-*`)은 **Java 전용**입니다. 다른 언어는 regex/regex-multiline을 사용하세요.
+> AST patterns (`ast-*`) are **Java only**. For other languages use regex or
+> regex-multiline.
 
 ---
 
-## 10. 트러블슈팅
+## 10. Troubleshooting
 
-### 데스크톱 앱이 안 뜰 때
+### The desktop app will not start
 
-| 증상 | 원인과 해결 |
-|------|------------|
-| macOS — "손상되었기 때문에 열 수 없습니다" | 코드 서명이 아직 없어 Gatekeeper가 격리한 것. 압축 푼 폴더에서 `xattr -dr com.apple.quarantine .` |
-| Windows — 창이 안 뜨거나 흰 화면 | WebView2 런타임 없음. [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) 설치 |
-| Linux — `apex-gui` 가 없음 | Linux용 데스크톱 앱은 빌드하지 않습니다. CLI(`apex`)를 쓰세요 |
-| 규칙 탭이 비어 있음 | 실행 파일 옆에 `configs/` 폴더가 있어야 합니다. 번들을 통째로 풀었는지 확인 |
+| Symptom | Cause and fix |
+|---------|---------------|
+| macOS — "the app is damaged and can't be opened" | Not code-signed yet, so Gatekeeper quarantined it. Run `xattr -dr com.apple.quarantine .` in the folder you extracted. |
+| Windows — no window, or a blank one | No WebView2 runtime. Install [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/). |
+| Linux — there is no `apex-gui` | We do not build the desktop app for Linux. Use the CLI (`apex`). |
+| The Rules tab is empty | The `configs/` folder must sit next to the executable. Check that you extracted the whole bundle. |
 
-### 규칙이 동작하지 않을 때
+### A rule is not firing
 
-| 확인 사항 | 해결 |
-|-----------|------|
-| `enabled: true` 인가? | false면 무시됨 |
-| 패턴에 `\n`이 있는데 `type: "regex"` 인가? | `regex-multiline`로 변경 |
-| YAML 백슬래시가 `\\.` 가 아니라 `\.` 인가? | `\\.`로 수정 |
-| ast-* 규칙인데 Java 파일이 아닌가? | ast-*는 Java 전용 |
-| 프로파일에 해당 룰셋이 포함되어 있는가? | profiles.yaml 확인 |
-| 오버라이드로 껐는데 계속 나오는가? | 필드명이 `rule_id`가 아니라 `id` 인지 확인 (6장) |
+| Check | Fix |
+|-------|-----|
+| Is `enabled: true`? | `false` means it is skipped |
+| Does the pattern contain `\n` under `type: "regex"`? | change it to `regex-multiline` |
+| Is the YAML backslash `\.` instead of `\\.`? | write `\\.` |
+| Is it an `ast-*` rule on a non-Java file? | `ast-*` is Java only |
+| Does the profile include that ruleset? | check `profiles.yaml` |
+| Switched it off in an override and it still fires? | the field is `id`, not `rule_id` (section 6) |
 
-### 너무 많은 이슈가 나올 때
+### Too many issues
 
 ```bash
-# 심각도 필터
+# Filter by severity
 ./apex ./src --profile=all --min-severity=high
 
-# 오버라이드로 특정 규칙 끄기
-# configs/overrides.yaml에 enabled: false 추가
+# Switch specific rules off in an override
+# add enabled: false to configs/overrides.yaml
 ./apex ./src --profile=all --overrides=configs/overrides.yaml
 ```
 
-### JSON으로 규칙별 카운트 확인
+### Counting issues per rule from the JSON
 
 ```bash
 ./apex ./src --profile=all -o json --output-file=result.json
@@ -638,3 +671,7 @@ for rid, cnt in sorted(rules.items(), key=lambda x: -x[1]):
 print(f'Total: {len(data.get(\"issues\", []))} issues, {len(rules)} rules')
 "
 ```
+
+---
+
+[한국어](QUICK_START.ko.md)

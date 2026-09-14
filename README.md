@@ -2,16 +2,47 @@
      릴리스 워크플로가 통째로 복사하므로, 배포 repo에서 직접 고치면
      다음 릴리스에 지워진다. 문구 수정은 여기서 한다.
      링크가 docs/ 로 시작하는 것은 배포 repo 루트 기준이기 때문이다. -->
-# APEX — Code quality analysis, as a desktop app or a CLI
+# APEX — static analysis that runs where your code cannot leave
 
-> **535 rules** for Java, JavaScript, HTML, CSS, SQL and XML. One download gives
-> you both a desktop app and a command-line binary. No JVM, no Node.js, no
-> Python. Runs with no internet access.
+> Static analysis for Java, JavaScript, HTML, CSS, SQL and XML. **535 rules**,
+> a desktop app and a CLI over one engine, an editor built in, and **nothing
+> leaves the machine**. Unzip and run — no JVM, no Node.js, no Python.
 
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#install)
+[![Release](https://img.shields.io/github/v/release/mhb8436/apex-releases?label=release&color=2f855a)](https://github.com/mhb8436/apex-releases/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/mhb8436/apex-releases/total?color=2f855a)](https://github.com/mhb8436/apex-releases/releases)
+[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](#install)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](https://www.gnu.org/licenses/agpl-3.0)
 
-[한국어 문서](README.ko.md)
+[**Download**](https://github.com/mhb8436/apex-releases/releases/latest) ·
+[Quick start](docs/QUICK_START.md) ·
+[Custom rules](docs/CUSTOM_RULES.md) ·
+[한국어](README.ko.md)
+
+## Why APEX
+
+**It runs where your code cannot leave.** Defence, government, banking — the
+places with the strictest review are the places most tools cannot go. APEX
+needs no network at all, and `--offline` enforces it: every connection to a
+non-loopback address is refused at the resolved IP, DNS resolution included.
+[The proof is a demo that fails on purpose first.](docs/AIRGAP_VERIFICATION.md)
+
+**You do not bring an editor.** Browse the project, read the source with
+syntax highlighting, jump from an issue to the line that caused it, fix it, and
+re-check that one file — inside the app. On a site where every binary needs
+approval, that is one fewer thing to get approved.
+
+**Same answer every time.** The same source produces the same findings in the
+same order. Rules that need precision are AST-based rather than text matching,
+so results hold up in an audit.
+
+**AI audit reports on your own hardware.** Any OpenAI-compatible endpoint works
+— an in-house Ollama or vLLM server — so the report is written without the code
+ever reaching a cloud API.
+
+**Cross-analysis other linters skip.** Point it at your DDL and APEX checks
+every query it can find — MyBatis XML, `.sql` files, SQL embedded in Java —
+against the real schema: missing indexes, composite-index leading-column skips,
+columns that do not exist.
 
 <!-- APEX-DEMO:START -->
 ## Demo
@@ -20,15 +51,31 @@
 
 ![APEX scan](docs/media/scan.gif)
 
-A real eGovFrame-based project — 413 files, 128,497 lines — analyzed in 2.56
-seconds. Paths and class names are anonymized; every number is an actual result.
+A real government-framework project — 413 files, 128,497 lines — analyzed in
+2.56 seconds. Paths and class names are anonymized; every number is an actual
+measurement, not a mock-up.
+
+### Reading and fixing the code — desktop app
+
+![APEX editor](docs/media/editor.gif)
+
+This is the part most static analysers leave to you. Find the file by name,
+open it, and every finding in it is marked in the gutter and the minimap. Step
+between them with the arrows or `F8`. Press **Edit**, fix the line, save — and
+APEX re-checks **that one file** immediately: eleven findings become ten,
+without re-scanning the project.
+
+The editor is part of the app. On a site where every binary needs approval,
+that is one fewer thing to get approved.
 
 ### Adding a custom rule — desktop app
 
 ![Custom rule](docs/media/custom-rule.gif)
 
-Register a team convention as a regex and it is picked up on the next scan. The
-pattern is tested against sample code before you save it.
+Register a team convention as a regex and it is picked up on the next scan.
+Paste sample code and the tester shows you the actual match before you save —
+judged exactly as the scan engine judges it, so a pattern that matches here
+will not come back empty in the scan.
 
 ### AI audit report with no internet access — terminal
 
@@ -139,8 +186,6 @@ mode and then go fullscreen** — or paste the path into the field directly.
 damaged. Run `xattr -dr com.apple.quarantine .` once in the folder you
 extracted.
 
-**The desktop app's interface is Korean only.** The CLI follows `--lang=en|ko`.
-
 **There is no desktop build for Linux.** On Linux, APEX is the CLI.
 
 ## Get started
@@ -198,8 +243,11 @@ apex ./src --profile=sql-ddl --ddl=./ddl/
 apex ./src --profile=all --lang=ko
 ```
 
-> The desktop app's interface is currently Korean only. The CLI follows
-> `--lang` (`en` / `ko`) and defaults to your system locale.
+> Both front ends default to English. The desktop app takes its language from
+> **Settings**; the CLI takes `--lang` (`en` / `ko`), or the `APEX_LANG`
+> environment variable. Your system locale is not consulted — a tool that
+> changes language depending on the machine it runs on is worse than one that
+> is predictable.
 
 ## Profiles
 
@@ -324,7 +372,7 @@ an external endpoint and watch it fail before running the local one.
 | `--model` | Model name | — |
 | `--api-key` | API key; any value works for a local server | — |
 | `--project` | Name to use in the report | scan file name |
-| `--lang` | `ko` / `en` | `ko` |
+| `--lang` | Report language, `ko` / `en` | interface language |
 | `--offline` | Air-gapped mode; blocks non-loopback connections | `false` |
 | `--timeout` | Per-request timeout | `5m` |
 
@@ -353,7 +401,7 @@ apex ai-report [scan.json]          AI audit report from a scan JSON
 | `--cross-file-only` | | Cross-file analysis only | `false` |
 | `--summary` | | Per-rule summary table, useful in CI | `false` |
 | `--no-dedup` | | Keep duplicate findings | `false` |
-| `--lang` | | Output language, `en` / `ko` | system locale |
+| `--lang` | | Output language, `en` / `ko` (or `APEX_LANG`) | `en` |
 | `--verbose` | `-v` | Verbose output | `false` |
 
 ## Desktop app reference
@@ -366,7 +414,7 @@ apex ai-report [scan.json]          AI audit report from a scan JSON
 | Code | `Ctrl/Cmd+4` | **Browse the project, read and edit source with syntax highlighting, re-check the file you just fixed** |
 | Reports | `Ctrl/Cmd+5` | Export Excel / HTML / JSON, recent exports |
 | AI audit | `Ctrl/Cmd+6` | Endpoint and model, connection test, air-gapped mode, progress, cancel |
-| Settings | `Ctrl/Cmd+7` | Application preferences |
+| Settings | `Ctrl/Cmd+7` | Interface language, theme, AI endpoint defaults |
 
 ### Reading and editing code
 
@@ -454,7 +502,7 @@ agreed on:
 ## Documentation
 
 - [Quick start](docs/QUICK_START.md) — desktop app and CLI, from install to first report
-- [User manual](docs/APEX_사용자_매뉴얼.md) — every screen, every flag, every rule category
+- [User manual](docs/USER_MANUAL.md) — every screen, every flag, every rule category
 - [Custom rules](docs/CUSTOM_RULES.md) — writing your own rules
 - [Air-gap verification](docs/AIRGAP_VERIFICATION.md) — proving the offline guard works
 

@@ -1,33 +1,33 @@
-# 커스텀 규칙 추가 가이드
+# Writing custom rules
 
-이 문서는 프로그램 수정 없이 YAML 파일만으로 새로운 검사 규칙을 추가하는 방법을 설명합니다.
+This document explains how to add new rules by editing YAML alone, with no change to the program.
 
-## 개요
+## Overview
 
-APEX는 YAML 기반의 룰셋 시스템을 사용합니다. 특정 패턴 타입의 규칙은 프로그램 코드 수정 없이 YAML 파일만 편집하여 추가할 수 있습니다.
+APEX uses a YAML-based ruleset system. For most pattern types you can add a rule by editing YAML, without touching Go code.
 
-### 지원 패턴 타입
+### Supported pattern types
 
-| 패턴 타입 | 설명 | YAML만으로 추가 |
+| Pattern type | What it does | YAML only |
 |----------|------|----------------|
-| `regex` | 정규식 패턴 매칭 (한 줄) | ✅ 가능 |
-| `regex-multiline` | 멀티라인 정규식 패턴 매칭 | ✅ 가능 |
-| `annotation-missing-attr` | 어노테이션 필수 속성 검증 | ✅ 가능 |
-| `ast-method-call` | AST 기반 메서드 호출 검사 | ✅ 가능 |
-| `ast-annotation` | AST 기반 어노테이션 검사 | ✅ 가능 |
-| `ast-import` | AST 기반 import 검사 | ✅ 가능 |
-| `ast-variable` | AST 기반 변수/필드 검사 | ✅ 가능 |
-| `ast-try-catch` | AST 기반 예외 처리 검사 | ✅ 가능 |
-| `ast-class` | AST 기반 클래스 구조 검사 | ✅ 가능 |
-| `ast-method` | AST 기반 메서드 구조 분석 | ✅ 가능 |
-| `ast-multi-cud` | AST 기반 다중 CUD 호출 검사 | ✅ 가능 |
-| `ast-dead-code` | AST 기반 Dead Code 검출 | ✅ 가능 |
-| `ast-filtered-regex` | 주석 오탐 제거 정규식 (ANTLR4 토큰 필터) | ✅ 가능 |
-| `ast-multi-cud` | 다건 CUD 트랜잭션 검사 | ✅ 가능 |
-| `cross-file` | 크로스파일 분석 (MyBatis 미사용 SQL ID) | ✅ 가능 |
-| `method-analysis` | 메서드/AST 심화 분석 | ❌ Go 코드 구현 필요 |
+| `regex` | Regex match, one line at a time | ✅ |
+| `regex-multiline` | Regex match over the whole file | ✅ |
+| `annotation-missing-attr` | Required annotation attributes | ✅ |
+| `ast-method-call` | Method calls, from the AST | ✅ |
+| `ast-annotation` | Annotations, from the AST | ✅ |
+| `ast-import` | Imports, from the AST | ✅ |
+| `ast-variable` | Variables and fields, from the AST | ✅ |
+| `ast-try-catch` | Exception handling, from the AST | ✅ |
+| `ast-class` | Class shape, from the AST | ✅ |
+| `ast-method` | Method shape, from the AST | ✅ |
+| `ast-multi-cud` | Several create/update/delete calls together | ✅ |
+| `ast-dead-code` | Dead code, from the AST | ✅ |
+| `ast-filtered-regex` | Regex with comments filtered out (ANTLR4 token filter) | ✅ |
+| `ast-multi-cud` | Multi-row CUD transaction checks | ✅ |
+| `cross-file` | Cross-file analysis (for example, unused MyBatis SQL IDs) | ✅ |
+| `method-analysis` | Deeper method and AST analysis | ❌ needs Go code |
 
-## 룰셋 파일 위치
+## Where the ruleset files live
 
 ```
 configs/
@@ -41,222 +41,222 @@ configs/
     └── egov.yaml          # eGovernment framework standards (33 rules)
 ```
 
-### 프로파일 그룹
+### Profile groups
 
 ```bash
-# 개별 프로파일
+# individual profiles
 apex ./src --profile=quality
 apex ./src --profile=modernize
 apex ./src --profile=spring,egov
 
-# 그룹 (여러 프로파일 조합)
+# groups (several profiles at once)
 apex ./src --profile=all            # quality + secure + sql + modernize + spring + egov
 apex ./src --profile=essential      # secure + quality
 apex ./src --profile=egov-full      # quality + secure + sql + egov + spring
 apex ./src --profile=migration      # modernize + spring
 ```
 
-### 룰셋 요약
+### The rulesets at a glance
 
-| 룰셋 | 규칙 수 | 대상 | 설명 |
+| Ruleset | Rules | Applies to | What it covers |
 |-------|---------|------|------|
-| `quality` | 53+ | Java, JS, HTML, CSS | 코드 품질, 명명규칙, 성능, 레거시 API |
-| `secure` | 80+ | Java, JS | SQL Injection, XSS, 암호화, 인증/인가 |
-| `sql` | 89 | SQL, Java | SQL 스타일, 성능, 바인드변수, DML |
+| `quality` | 53+ | Java, JS, HTML, CSS | code quality, naming, performance, legacy APIs |
+| `secure` | 80+ | Java, JS | SQL injection, XSS, crypto, authentication and authorization |
+| `sql` | 89 | SQL, Java | SQL style, performance, bind variables, DML |
 | `modernize` | 50 | Java, XML | eGov 3.x→4.x, javax→jakarta, iBatis→MyBatis |
-| `spring` | 25 | Java | DI 패턴, @Transactional, Controller, REST API |
-| `egov` | 33 | Java, XML | 전자정부 계층 명명, Service/Mapper 표준, CRUD 접두사 |
+| `spring` | 25 | Java | DI patterns, @Transactional, controllers, REST APIs |
+| `egov` | 33 | Java, XML | eGovernment layer naming, Service/Mapper standards, CRUD prefixes |
 
-## 규칙 구조
+## What a rule looks like
 
-### 기본 YAML 구조
+### The basic YAML
 
 ```yaml
 version: "1.0"
-profile: "프로파일명"
+profile: "profile-name"
 
 languages:
   - language: java    # java, javascript, html, css, sql, xml
     rules:
-      - id: "규칙-id"
-        name: "규칙 표시명"
+      - id: "rule-id"
+        name: "Name shown to the user"
         severity: "high"
-        category: "카테고리"
-        description: "규칙 설명"
+        category: "category"
+        description: "What the rule is about"
         enabled: true
         pattern:
           type: "regex"
-          regex: "정규식패턴"
+          regex: "the-regex"
         custom:
-          fix: "해결방법"
+          fix: "how to fix it"
         exclude:
-          - "제외패턴"
+          - "pattern-to-skip"
 ```
 
-### 필수 필드
+### Required fields
 
-| 필드 | 설명 | 예시 |
+| Field | Meaning | Example |
 |------|------|------|
-| `id` | 고유한 규칙 ID | `"custom-debug-code"` |
-| `name` | 사용자에게 표시되는 규칙명 | `"디버그 코드 감지"` |
-| `severity` | 심각도 | `low`, `medium`, `high`, `critical` |
-| `category` | 카테고리 | `naming`, `security`, `style` 등 |
-| `description` | 상세 설명 | `"프로덕션 코드에 디버그 코드가 있습니다"` |
-| `enabled` | 활성화 여부 | `true` 또는 `false` |
-| `pattern.type` | 패턴 타입 | `regex`, `ast-method-call` 등 |
+| `id` | A unique rule ID | `"custom-debug-code"` |
+| `name` | The rule name shown to the user | `"Debug code found"` |
+| `severity` | Severity | `low`, `medium`, `high`, `critical` |
+| `category` | Category | `naming`, `security`, `style`, … |
+| `description` | The longer explanation | `"Debug code left in production"` |
+| `enabled` | Whether it runs | `true` or `false` |
+| `pattern.type` | Pattern type | `regex`, `ast-method-call`, … |
 
-### 선택 필드
+### Optional fields
 
-| 필드 | 설명 |
+| Field | Meaning |
 |------|------|
-| `custom.fix` | 해결 방법 제안 (리포트에 💡로 표시) |
-| `custom.example` | 올바른 코드 예시 |
-| `custom.flags` | 정규식 플래그 (`"i"` = case-insensitive) |
-| `exclude[]` | 제외할 패턴 목록 (regex 타입 전용) |
+| `custom.fix` | The suggested fix (shown with 💡 in the report) |
+| `custom.example` | An example of the correct code |
+| `custom.flags` | Regex flags (`"i"` = case-insensitive) |
+| `exclude[]` | Patterns to skip (regex types only) |
 
-### 심각도 레벨
+### Severity levels
 
-| 심각도 | 설명 |
+| Severity | Meaning |
 |--------|------|
-| `critical` | 즉시 수정 필요 (보안 취약점, 필수 규칙 위반) |
-| `high` | 릴리즈 전 수정 권장 |
-| `medium` | 점진적 개선 필요 |
-| `low` | 권장사항 |
+| `critical` | Fix now (a security hole, or a mandatory rule broken) |
+| `high` | Should be fixed before release |
+| `medium` | Worth improving over time |
+| `low` | A recommendation |
 
 ---
 
-## Part 1: 정규식 규칙
+## Part 1: regex rules
 
 ### type: regex
 
-한 줄 단위로 정규식 패턴을 매칭합니다.
+Matches a regex against each line on its own.
 
 ```yaml
 - id: "custom-system-out"
-  name: "System.out 사용 금지"
+  name: "System.out prohibited"
   severity: "medium"
   category: "logging"
-  description: "System.out 대신 로거를 사용하세요"
+  description: "Use a logger instead of System.out"
   enabled: true
   pattern:
     type: "regex"
     regex: "System\\.out\\."
   custom:
-    fix: "logger.info() 또는 logger.debug()로 변경하세요"
+    fix: "Change it to logger.info() or logger.debug()"
 ```
 
 ### type: regex-multiline
 
-파일 전체를 하나의 문자열로 처리하여 여러 줄에 걸친 패턴을 매칭합니다.
+Treats the whole file as one string, so a pattern can span lines.
 
 ```yaml
 - id: "custom-loop-string-concat"
-  name: "루프 내 String += 사용"
+  name: "String += inside a loop"
   severity: "medium"
   category: "performance"
-  description: "루프에서 String += 사용 시 성능 저하"
+  description: "String += in a loop is slow"
   enabled: true
   pattern:
     type: "regex-multiline"
     regex: "(for|while)\\s*\\([^)]*\\)\\s*\\{[^}]*\\w+\\s*\\+=\\s*\"[^\"]*\""
   custom:
-    fix: "StringBuilder를 사용하세요"
+    fix: "Use a StringBuilder"
 ```
 
 ### type: annotation-missing-attr
 
-Java 어노테이션에 필수 속성이 없으면 위반으로 감지합니다.
+Reports a violation when a Java annotation is missing a required attribute.
 
 ```yaml
 - id: "custom-cacheable-key"
-  name: "@Cacheable key 속성 필수"
+  name: "@Cacheable requires key"
   severity: "high"
   category: "annotation"
-  description: "@Cacheable 어노테이션에 key 속성이 필수입니다"
+  description: "@Cacheable must specify key"
   enabled: true
   pattern:
     type: "annotation-missing-attr"
     annotation: "@Cacheable"
     required_attr: "key"
   custom:
-    fix: "key 속성을 추가하세요"
+    fix: "Add the key attribute"
     example: "@Cacheable(value = \"users\", key = \"#id\")"
 ```
 
 ---
 
-## Part 2: AST 쿼리 규칙 (Java 전용)
+## Part 2: AST query rules (Java only)
 
-AST(Abstract Syntax Tree) 쿼리 규칙은 Java 소스코드의 구문 트리를 분석하여 정규식만으로는 검출하기 어려운 복합 패턴을 찾습니다. **YAML만으로 작성 가능**하며, ANTLR4 파서가 추출한 구조 정보를 활용합니다.
+AST query rules read the syntax tree of the Java source to find patterns a regex cannot express. They are **written in YAML alone**, on top of the structure the ANTLR4 parser extracts.
 
-### AST 쿼리가 정규식보다 나은 경우
+### Where an AST query beats a regex
 
-| 상황 | 정규식의 한계 | AST 쿼리의 장점 |
+| Situation | What a regex cannot do | What the AST query gives you |
 |------|-------------|----------------|
-| 루프 내 DB 호출 | 멀티라인 패턴이 복잡하고 오탐 많음 | `context: "inside-loop"` 한 줄로 정확히 검출 |
-| 빈 catch 블록 | `catch.*{}` 패턴이 포맷에 의존적 | AST로 statement 수 0인지 정확히 판별 |
-| 클래스 메서드 수 | 정규식으로 불가능 | `max_methods: 20` 으로 즉시 적용 |
-| import 경로 필터 | 줄 단위로는 맥락 판단 불가 | `class_annotation` 조건으로 범위 한정 |
-| 어노테이션 속성값 | 정규식으로 key=value 파싱 복잡 | `missing_attr_name` + `attr_value`로 정밀 검사 |
+| A database call inside a loop | the multiline pattern is complex and misfires often | `context: "inside-loop"` — one line, exact |
+| An empty catch block | `catch.*{}` depends on formatting | the AST says whether the statement count is zero |
+| Methods per class | not expressible as a regex | `max_methods: 20` and you are done |
+| Filtering imports | a line gives no context | `class_annotation` narrows the scope |
+| Annotation attribute values | parsing key=value with a regex is painful | `missing_attr_name` plus `attr_value` |
 
-### 공통 필드: `context`
+### Shared field: `context`
 
-AST 쿼리 규칙에서 공통으로 사용하는 컨텍스트 조건:
+The context conditions AST query rules share:
 
-| context 값 | 설명 | 사용 가능한 타입 |
+| `context` value | Meaning | Usable with |
 |------------|------|-----------------|
-| `inside-loop` | for/while/do-while 루프 내부 | ast-method-call, ast-variable |
-| `inside-catch` | catch 블록 내부 | ast-method-call, ast-variable |
-| `not-inside-catch` | catch 블록 외부 | ast-method-call, ast-variable |
-| `method-name:<regex>` | 특정 이름의 메서드 내부 | ast-method-call, ast-annotation |
-| `class-field` | 클래스 필드 (로컬 변수 대신) | ast-variable |
-| *(생략)* | 조건 없음 (모든 위치) | 모든 타입 |
+| `inside-loop` | inside a for/while/do-while loop | ast-method-call, ast-variable |
+| `inside-catch` | inside a catch block | ast-method-call, ast-variable |
+| `not-inside-catch` | outside any catch block | ast-method-call, ast-variable |
+| `method-name:<regex>` | inside a method whose name matches | ast-method-call, ast-annotation |
+| `class-field` | a class field, not a local variable | ast-variable |
+| *(omitted)* | no condition — anywhere | all types |
 
-### 공통 필드: `custom` 맵
+### Shared field: the `custom` map
 
-| 키 | 타입 | 설명 |
+| Key | Type | Meaning |
 |----|------|------|
-| `fix` | string | 수정 제안 (리포트에 💡로 표시) |
-| `args_min` | int | 최소 인자 수 (ast-method-call) |
-| `args_max` | int | 최대 인자 수 (ast-method-call) |
-| `max_methods` | int | 최대 메서드 수 (ast-class) |
-| `max_fields` | int | 최대 필드 수 (ast-class) |
-| `catch_is_empty` | bool | catch 블록이 비어있는지 (ast-try-catch) |
-| `has_finally` | bool | finally 블록 존재 여부 (ast-try-catch) |
-| `has_resources` | bool | try-with-resources 사용 여부 (ast-try-catch) |
-| `max_overloads` | int | 동명 메서드 최대 개수 (ast-class) |
-| `max_inner_classes` | int | 내부 클래스 최대 개수 (ast-class) |
-| `max_imports` | int | 최대 import 수 (ast-import) |
-| `all_fields_type` | string | 모든 필드가 이 타입이면 위반 (ast-class) |
-| `check_type` | string | Dead code 체크 유형 (ast-dead-code) |
-| `max_try_lines` | int | try 블록 최대 라인 수 (ast-try-catch) |
-| `max_if_depth` | int | if 최대 중첩 깊이 (ast-method) |
-| `max_branches` | int | if-else-if 최대 분기 수 (ast-method) |
-| `max_lines` | int | 메서드 최대 라인 수 (ast-method) |
-| `max_statements` | int | 메서드 최대 statement 수 (ast-method) |
+| `fix` | string | the suggested fix (shown with 💡 in the report) |
+| `args_min` | int | minimum argument count (ast-method-call) |
+| `args_max` | int | maximum argument count (ast-method-call) |
+| `max_methods` | int | maximum methods (ast-class) |
+| `max_fields` | int | maximum fields (ast-class) |
+| `catch_is_empty` | bool | whether the catch block is empty (ast-try-catch) |
+| `has_finally` | bool | whether there is a finally block (ast-try-catch) |
+| `has_resources` | bool | whether try-with-resources is used (ast-try-catch) |
+| `max_overloads` | int | maximum overloads of one name (ast-class) |
+| `max_inner_classes` | int | maximum inner classes (ast-class) |
+| `max_imports` | int | maximum imports (ast-import) |
+| `all_fields_type` | string | a violation when every field has this type (ast-class) |
+| `check_type` | string | which dead-code check to run (ast-dead-code) |
+| `max_try_lines` | int | maximum lines in a try block (ast-try-catch) |
+| `max_if_depth` | int | maximum if nesting depth (ast-method) |
+| `max_branches` | int | maximum if-else-if branches (ast-method) |
+| `max_lines` | int | maximum lines in a method (ast-method) |
+| `max_statements` | int | maximum statements in a method (ast-method) |
 
 ---
 
-### 2.1 ast-method-call — 메서드 호출 패턴
+### 2.1 ast-method-call — method call patterns
 
-Java 소스코드에서 특정 메서드 호출을 검색합니다. 호출 대상(qualifier), 메서드명, 인자 수, 호출 위치(context)를 조합하여 필터링합니다.
+Finds particular method calls in Java source. You filter by the object called (qualifier), the method name, the argument count and where the call sits (context).
 
-#### 패턴 필드
+#### Pattern fields
 
-| 필드 | 필수 | 설명 | 예시 |
+| Field | Required | Meaning | Example |
 |------|------|------|------|
-| `method` | ✅ | 메서드명 정규식 | `"^(select\|find).*"` |
-| `qualifier` | - | 호출 대상 객체 정규식 | `".*(?i)(dao\|mapper)"` |
-| `context` | - | 호출 위치 조건 | `"inside-loop"` |
+| `method` | ✅ | regex for the method name | `"^(select\|find).*"` |
+| `qualifier` | - | regex for the object called | `".*(?i)(dao\|mapper)"` |
+| `context` | - | where the call must sit | `"inside-loop"` |
 
-#### 예시: 루프 내 DB 조회 (N+1 문제)
+#### Example: a database read inside a loop (the N+1 problem)
 
 ```yaml
 - id: "quality-ast-001"
-  name: "루프 내 DB 조회 호출"
+  name: "Database read inside a loop"
   severity: "high"
   category: "performance"
-  description: "루프 안에서 DB 조회 메서드를 호출하면 N+1 문제가 발생합니다"
+  description: "Reading from the database inside a loop causes the N+1 problem"
   enabled: true
   pattern:
     type: "ast-method-call"
@@ -264,25 +264,25 @@ Java 소스코드에서 특정 메서드 호출을 검색합니다. 호출 대�
     qualifier: ".*(?i)(dao|repository|mapper)"
     context: "inside-loop"
   custom:
-    fix: "JOIN이나 IN절 배치 조회로 변경하세요"
+    fix: "Use a JOIN, or batch the reads with an IN clause"
 ```
 
-검출 대상 예:
+What it catches:
 ```java
 for (String id : idList) {
-    UserVO user = userMapper.selectUserById(id);  // ← 위반!
+    UserVO user = userMapper.selectUserById(id);  // ← violation
     results.add(user);
 }
 ```
 
-#### 예시: 루프 내 DB INSERT/UPDATE
+#### Example: INSERT/UPDATE inside a loop
 
 ```yaml
 - id: "quality-ast-002"
-  name: "루프 내 DB 변경 호출"
+  name: "Database write inside a loop"
   severity: "high"
   category: "performance"
-  description: "루프 안에서 INSERT/UPDATE/DELETE를 개별 호출하면 성능이 저하됩니다"
+  description: "Calling INSERT/UPDATE/DELETE one row at a time inside a loop is slow"
   enabled: true
   pattern:
     type: "ast-method-call"
@@ -290,17 +290,17 @@ for (String id : idList) {
     qualifier: ".*(?i)(dao|repository|mapper)"
     context: "inside-loop"
   custom:
-    fix: "Batch Insert/Update 또는 addBatch()/executeBatch()를 사용하세요"
+    fix: "Use a batch insert/update, or addBatch()/executeBatch()"
 ```
 
-#### 예시: 루프 내 외부 API 호출
+#### Example: an external API call inside a loop
 
 ```yaml
 - id: "quality-ast-003"
-  name: "루프 내 원격 API 호출"
+  name: "Remote API call inside a loop"
   severity: "high"
   category: "performance"
-  description: "루프 안에서 외부 API를 호출하면 응답시간이 누적됩니다"
+  description: "Calling an external API inside a loop adds up the latency"
   enabled: true
   pattern:
     type: "ast-method-call"
@@ -308,49 +308,49 @@ for (String id : idList) {
     qualifier: ".*(?i)(restTemplate|webClient|httpClient|feignClient)"
     context: "inside-loop"
   custom:
-    fix: "벌크 API 호출 또는 CompletableFuture 병렬 처리를 사용하세요"
+    fix: "Use a bulk API call, or run them in parallel with CompletableFuture"
 ```
 
-#### 예시: 인자 수 제한
+#### Example: limiting the argument count
 
 ```yaml
 - id: "custom-too-many-args"
-  name: "메서드 호출 인자 과다"
+  name: "Too many arguments"
   severity: "medium"
   category: "design"
-  description: "메서드 호출 인자가 6개를 초과합니다. 파라미터 객체를 사용하세요."
+  description: "More than six arguments. Use a parameter object."
   enabled: true
   pattern:
     type: "ast-method-call"
     method: ".*"
   custom:
     args_min: 7
-    fix: "DTO/VO 객체로 파라미터를 그룹화하세요"
+    fix: "Group the parameters into a DTO or VO"
 ```
 
 ---
 
-### 2.2 ast-annotation — 어노테이션 검사
+### 2.2 ast-annotation — annotation checks
 
-Java 어노테이션의 존재, 속성 유무, 속성값을 AST 레벨에서 검사합니다.
+Checks, at the AST level, whether an annotation is present, whether it has an attribute, and what that attribute says.
 
-#### 패턴 필드
+#### Pattern fields
 
-| 필드 | 필수 | 설명 | 예시 |
+| Field | Required | Meaning | Example |
 |------|------|------|------|
-| `annotation` | ✅ | 어노테이션명 정규식 | `"^RequestMapping$"` |
-| `missing_attr_name` | - | 이 속성이 없으면 위반 | `"method"` |
-| `attr_value` | - | 속성값이 이 정규식과 불일치하면 위반 | `".*readOnly.*true.*"` |
-| `context` | - | 컨텍스트 조건 | `"method-name:.*"` |
+| `annotation` | ✅ | regex for the annotation name | `"^RequestMapping$"` |
+| `missing_attr_name` | - | a violation when this attribute is absent | `"method"` |
+| `attr_value` | - | a violation when the value does not match this regex | `".*readOnly.*true.*"` |
+| `context` | - | context condition | `"method-name:.*"` |
 
-#### 예시: @RequestMapping에 method 속성 누락 (메서드 레벨만)
+#### Example: @RequestMapping with no method attribute (method level only)
 
 ```yaml
 - id: "quality-ast-011"
-  name: "@RequestMapping method 속성 누락"
+  name: "@RequestMapping has no method attribute"
   severity: "medium"
   category: "design"
-  description: "@RequestMapping에 method 속성이 없으면 모든 HTTP 메서드를 허용합니다"
+  description: "Without a method attribute, @RequestMapping accepts every HTTP method"
   enabled: true
   pattern:
     type: "ast-annotation"
@@ -358,19 +358,19 @@ Java 어노테이션의 존재, 속성 유무, 속성값을 AST 레벨에서 검
     missing_attr_name: "method"
     context: "method-name:.*"
   custom:
-    fix: "@GetMapping, @PostMapping 등 전용 어노테이션을 사용하세요"
+    fix: "Use a dedicated annotation: @GetMapping, @PostMapping and so on"
 ```
 
-> **참고**: `context: "method-name:.*"`는 "어떤 메서드 내부에든 있으면"이라는 조건이므로, 클래스 레벨 `@RequestMapping`은 자동 제외됩니다.
+> **Note**: `context: "method-name:.*"` means "inside any method at all", so a class-level `@RequestMapping` is excluded automatically.
 
-#### 예시: @Transactional readOnly 속성값 검사
+#### Example: checking @Transactional readOnly
 
 ```yaml
 - id: "custom-transactional-readonly"
-  name: "조회 메서드 readOnly 누락"
+  name: "Read method without readOnly"
   severity: "medium"
   category: "performance"
-  description: "조회 메서드의 @Transactional에 readOnly=true가 없습니다"
+  description: "@Transactional on a read method does not set readOnly=true"
   enabled: true
   pattern:
     type: "ast-annotation"
@@ -378,167 +378,167 @@ Java 어노테이션의 존재, 속성 유무, 속성값을 AST 레벨에서 검
     missing_attr_name: "readOnly"
     context: "method-name:^(select|find|get|query|search).*"
   custom:
-    fix: "@Transactional(readOnly = true)를 추가하세요"
+    fix: "Add @Transactional(readOnly = true)"
 ```
 
 ---
 
-### 2.3 ast-import — import 경로 검사
+### 2.3 ast-import — import checks
 
-Java import 문을 AST에서 추출하여 금지/권장 라이브러리를 검사합니다.
+Pulls the Java import statements out of the AST to check for banned or preferred libraries.
 
-#### 패턴 필드
+#### Pattern fields
 
-| 필드 | 필수 | 설명 | 예시 |
+| Field | Required | Meaning | Example |
 |------|------|------|------|
-| `import` | ✅ | import 경로 정규식 | `"^java\\.util\\.Date$"` |
-| `class_annotation` | - | 이 어노테이션이 있는 클래스에서만 검사 | `"Controller"` |
+| `import` | ✅ | regex for the import path | `"^java\\.util\\.Date$"` |
+| `class_annotation` | - | only check classes carrying this annotation | `"Controller"` |
 
-#### 예시: java.util.Date 사용 금지
+#### Example: banning java.util.Date
 
 ```yaml
 - id: "quality-ast-004"
   name: "java.util.Date import"
   severity: "medium"
   category: "deprecated"
-  description: "java.util.Date는 thread-unsafe합니다. java.time API를 사용하세요."
+  description: "java.util.Date is not thread-safe. Use the java.time API."
   enabled: true
   pattern:
     type: "ast-import"
     import: "^java\\.util\\.Date$"
   custom:
-    fix: "java.time.LocalDate, LocalDateTime, ZonedDateTime 등을 사용하세요"
+    fix: "Use java.time.LocalDate, LocalDateTime, ZonedDateTime and friends"
 ```
 
-#### 예시: commons-lang 구버전 사용 금지
+#### Example: banning the old commons-lang
 
 ```yaml
 - id: "quality-ast-005"
-  name: "commons-lang 구버전 import"
+  name: "Old commons-lang import"
   severity: "medium"
   category: "deprecated"
-  description: "org.apache.commons.lang은 EOL입니다. commons-lang3를 사용하세요."
+  description: "org.apache.commons.lang is end-of-life. Use commons-lang3."
   enabled: true
   pattern:
     type: "ast-import"
     import: "^org\\.apache\\.commons\\.lang\\."
   custom:
-    fix: "org.apache.commons.lang3 패키지로 마이그레이션하세요"
+    fix: "Migrate to the org.apache.commons.lang3 package"
 ```
 
-#### 예시: Controller에서 특정 import 금지
+#### Example: banning an import in controllers only
 
 ```yaml
 - id: "custom-controller-jdbc"
-  name: "Controller에서 JDBC 직접 사용"
+  name: "JDBC used directly in a Controller"
   severity: "high"
   category: "architecture"
-  description: "Controller에서 JDBC를 직접 사용하면 계층 구조를 위반합니다"
+  description: "Using JDBC directly in a Controller breaks the layering"
   enabled: true
   pattern:
     type: "ast-import"
     import: "^java\\.sql\\."
     class_annotation: "Controller|RestController"
   custom:
-    fix: "Service 레이어를 통해 데이터에 접근하세요"
+    fix: "Reach the data through the Service layer"
 ```
 
 ---
 
-### 2.4 ast-variable — 변수/필드 검사
+### 2.4 ast-variable — variable and field checks
 
-로컬 변수 또는 클래스 필드의 이름과 타입을 AST에서 검사합니다.
+Checks the name and type of a local variable or a class field, from the AST.
 
-#### 패턴 필드
+#### Pattern fields
 
-| 필드 | 필수 | 설명 | 예시 |
+| Field | Required | Meaning | Example |
 |------|------|------|------|
-| `name_pattern` | - | 변수명 정규식 | `"^[a-z]$"` |
-| `type_pattern` | - | 타입명 정규식 | `"^Map<String,\\s*Object>$"` |
-| `context` | - | `"class-field"` 또는 위치 조건 | `"class-field"` |
+| `name_pattern` | - | regex for the variable name | `"^[a-z]$"` |
+| `type_pattern` | - | regex for the type name | `"^Map<String,\\s*Object>$"` |
+| `context` | - | `"class-field"`, or a position condition | `"class-field"` |
 
-#### 예시: 단일 문자 변수명 검출
+#### Example: single-letter variable names
 
 ```yaml
 - id: "custom-single-char-var"
-  name: "단일 문자 변수명"
+  name: "Single-letter variable name"
   severity: "medium"
   category: "naming"
-  description: "의미 있는 변수명을 사용하세요 (i, j, k 제외)"
+  description: "Use a name that means something (i, j, k excepted)"
   enabled: true
   pattern:
     type: "ast-variable"
     name_pattern: "^[a-hlo-zA-Z]$"
   custom:
-    fix: "변수의 역할을 나타내는 이름을 사용하세요"
+    fix: "Name it after what it holds"
 ```
 
-#### 예시: 클래스 필드 중 Map<String, Object> 타입 검출
+#### Example: a Map<String, Object> class field
 
 ```yaml
 - id: "custom-field-map-object"
-  name: "필드에 Map<String, Object> 사용"
+  name: "Map<String, Object> as a field type"
   severity: "medium"
   category: "design"
-  description: "필드 타입으로 Map<String, Object>를 사용하면 타입 안전성이 없습니다"
+  description: "A Map<String, Object> field gives up type safety"
   enabled: true
   pattern:
     type: "ast-variable"
     type_pattern: "Map<String,Object>"
     context: "class-field"
   custom:
-    fix: "전용 VO/DTO 클래스를 정의하세요"
+    fix: "Define a proper VO or DTO class"
 ```
 
 ---
 
-### 2.5 ast-try-catch — 예외 처리 검사
+### 2.5 ast-try-catch — exception handling checks
 
-try-catch 블록의 구조를 AST에서 분석합니다: catch 예외 타입, 빈 catch, finally 유무, try-with-resources 사용 여부.
+Reads the shape of a try-catch from the AST: the exception type caught, whether the catch is empty, whether there is a finally, whether try-with-resources is used.
 
-#### 패턴 필드
+#### Pattern fields
 
-| 필드 | 필수 | 설명 | 예시 |
+| Field | Required | Meaning | Example |
 |------|------|------|------|
-| `exception_type` | - | 예외 타입 정규식 | `"IOException\|SQLException"` |
+| `exception_type` | - | regex for the exception type | `"IOException\|SQLException"` |
 
-#### custom 불리언 조건
+#### The boolean conditions in `custom`
 
-| 키 | 설명 |
+| Key | Meaning |
 |----|------|
-| `catch_is_empty: true` | catch 블록이 비어있으면 위반 |
-| `catch_is_empty: false` | catch 블록에 코드가 있으면 위반 |
-| `has_finally: true` | finally가 있으면 매치 |
-| `has_finally: false` | finally가 없으면 매치 |
-| `has_resources: true` | try-with-resources면 매치 |
-| `has_resources: false` | try-with-resources가 아니면 매치 |
+| `catch_is_empty: true` | a violation when the catch block is empty |
+| `catch_is_empty: false` | a violation when the catch block has code in it |
+| `has_finally: true` | matches when there is a finally |
+| `has_finally: false` | matches when there is no finally |
+| `has_resources: true` | matches try-with-resources |
+| `has_resources: false` | matches anything that is not try-with-resources |
 
-> **동작 방식**: `exception_type`이나 `catch_is_empty`가 설정되면 **catch 절 단위**로 검사합니다. 아무것도 설정하지 않으면 **try 블록 단위**로 검사합니다.
+> **How it runs**: set `exception_type` or `catch_is_empty` and the check runs **per catch clause**. Set neither and it runs **per try block**.
 
-#### 예시: 빈 catch 블록
+#### Example: an empty catch block
 
 ```yaml
 - id: "quality-ast-007"
-  name: "빈 catch 블록 (AST)"
+  name: "Empty catch block (AST)"
   severity: "critical"
   category: "exception"
-  description: "catch 블록이 비어있으면 예외가 무시됩니다"
+  description: "An empty catch block swallows the exception"
   enabled: true
   pattern:
     type: "ast-try-catch"
   custom:
     catch_is_empty: true
-    fix: "catch 블록에 logger.error(\"message\", e)를 추가하세요"
+    fix: "Add logger.error(\"message\", e) to the catch block"
 ```
 
-#### 예시: IO/DB 예외에 try-with-resources 미사용
+#### Example: IO/DB exceptions without try-with-resources
 
 ```yaml
 - id: "quality-ast-008"
-  name: "try-with-resources 미사용"
+  name: "try-with-resources not used"
   severity: "medium"
   category: "resource"
-  description: "IO/DB 예외 처리 시 try-with-resources를 사용하면 리소스 누수를 방지합니다"
+  description: "try-with-resources is what keeps IO and database resources from leaking"
   enabled: true
   pattern:
     type: "ast-try-catch"
@@ -546,90 +546,90 @@ try-catch 블록의 구조를 AST에서 분석합니다: catch 예외 타입, �
   custom:
     has_resources: false
     has_finally: false
-    fix: "try (Resource r = new Resource()) { ... } 구문을 사용하세요"
+    fix: "Write it as try (Resource r = new Resource()) { ... }"
 ```
 
-#### 예시: RuntimeException catch 경고
+#### Example: catching RuntimeException
 
 ```yaml
 - id: "custom-catch-runtime"
-  name: "RuntimeException 포괄 catch"
+  name: "Blanket catch of RuntimeException"
   severity: "high"
   category: "exception"
-  description: "RuntimeException을 catch하면 버그가 숨겨질 수 있습니다"
+  description: "Catching RuntimeException can hide a bug"
   enabled: true
   pattern:
     type: "ast-try-catch"
     exception_type: "^(RuntimeException|Exception|Throwable)$"
   custom:
-    fix: "구체적인 예외 타입을 catch하세요"
+    fix: "Catch the specific exception type"
 ```
 
 ---
 
-### 2.6 ast-class — 클래스 구조 검사
+### 2.6 ast-class — class shape checks
 
-클래스의 이름, 어노테이션, 메서드/필드 수를 AST에서 분석합니다.
+Reads a class's name, annotations and method and field counts from the AST.
 
-#### 패턴 필드
+#### Pattern fields
 
-| 필드 | 필수 | 설명 | 예시 |
+| Field | Required | Meaning | Example |
 |------|------|------|------|
-| `name_pattern` | - | 클래스명 정규식 | `".*ServiceImpl$"` |
-| `has_annotation` | - | 이 어노테이션이 있는 클래스만 대상 | `"Service"` |
-| `missing_annotation` | - | 이 어노테이션이 없으면 위반 | `"Transactional"` |
+| `name_pattern` | - | regex for the class name | `".*ServiceImpl$"` |
+| `has_annotation` | - | only classes carrying this annotation | `"Service"` |
+| `missing_annotation` | - | a violation when this annotation is absent | `"Transactional"` |
 
-#### custom 임계값
+#### The thresholds in `custom`
 
-| 키 | 설명 |
+| Key | Meaning |
 |----|------|
-| `max_methods` | 최대 메서드 수 (초과 시 위반) |
-| `max_fields` | 최대 필드 수 (초과 시 위반) |
+| `max_methods` | maximum methods; more than this is a violation |
+| `max_fields` | maximum fields; more than this is a violation |
 
-> **동작 우선순위**: `missing_annotation` → `max_methods` → `max_fields` 순서로 체크하며, 첫 번째 위반에서 이슈를 생성합니다.
+> **Order of checks**: `missing_annotation`, then `max_methods`, then `max_fields`. The first violation produces the finding.
 
-#### 예시: ServiceImpl 과대 클래스
+#### Example: an oversized ServiceImpl
 
 ```yaml
 - id: "quality-ast-009"
-  name: "ServiceImpl 과대 클래스"
+  name: "ServiceImpl is too large"
   severity: "medium"
   category: "design"
-  description: "ServiceImpl 클래스의 메서드가 너무 많습니다. 책임을 분리하세요."
+  description: "This ServiceImpl has too many methods. Split its responsibilities."
   enabled: true
   pattern:
     type: "ast-class"
     name_pattern: ".*ServiceImpl$"
   custom:
     max_methods: 20
-    fix: "도메인별로 Service 클래스를 분리하세요"
+    fix: "Split the Service along domain lines"
 ```
 
-#### 예시: Controller 과대 클래스
+#### Example: an oversized Controller
 
 ```yaml
 - id: "quality-ast-010"
-  name: "Controller 과대 클래스"
+  name: "Controller is too large"
   severity: "medium"
   category: "design"
-  description: "Controller 클래스의 메서드가 너무 많습니다"
+  description: "This Controller has too many methods"
   enabled: true
   pattern:
     type: "ast-class"
     name_pattern: ".*Controller$"
   custom:
     max_methods: 15
-    fix: "기능 단위로 Controller를 분리하세요"
+    fix: "Split the Controller by feature"
 ```
 
-#### 예시: @Service 클래스에 @Transactional 누락
+#### Example: a @Service without @Transactional
 
 ```yaml
 - id: "custom-service-transactional"
-  name: "Service에 @Transactional 누락"
+  name: "Service has no @Transactional"
   severity: "medium"
   category: "design"
-  description: "Service 클래스에는 @Transactional이 필요합니다"
+  description: "A Service class needs @Transactional"
   enabled: true
   pattern:
     type: "ast-class"
@@ -637,221 +637,221 @@ try-catch 블록의 구조를 AST에서 분석합니다: catch 예외 타입, �
     has_annotation: "Service"
     missing_annotation: "Transactional"
   custom:
-    fix: "클래스 또는 메서드에 @Transactional을 추가하세요"
+    fix: "Add @Transactional to the class or the method"
 ```
 
-#### 예시: VO 클래스 필드 수 제한
+#### Example: limiting fields on a VO
 
 ```yaml
 - id: "custom-vo-too-many-fields"
-  name: "VO 필드 과다"
+  name: "Too many fields on a VO"
   severity: "low"
   category: "design"
-  description: "VO 클래스의 필드가 너무 많습니다. 분리를 고려하세요."
+  description: "This VO has too many fields. Consider splitting it."
   enabled: true
   pattern:
     type: "ast-class"
     name_pattern: ".*(?i)(vo|dto)$"
   custom:
     max_fields: 30
-    fix: "관련 필드를 하위 VO/DTO로 그룹화하세요"
+    fix: "Group the related fields into a nested VO or DTO"
 ```
 
-### 2.7 ast-method — 메서드 구조 분석
+### 2.7 ast-method — method shape analysis
 
-메서드의 if-else 중첩 깊이, 분기 수, 라인 수, statement 수를 AST에서 분석합니다.
+Reads a method's if-else nesting depth, branch count, line count and statement count from the AST.
 
-#### 패턴 필드
+#### Pattern fields
 
-| 필드 | 필수 | 설명 | 예시 |
+| Field | Required | Meaning | Example |
 |------|------|------|------|
-| `name_pattern` | - | 메서드명 정규식 (미지정 시 전체) | `"process.*"` |
+| `name_pattern` | - | regex for the method name; omit it for all methods | `"process.*"` |
 
-#### custom 임계값
+#### The thresholds in `custom`
 
-| 키 | 설명 | 기본값 |
+| Key | Meaning | Default |
 |----|------|--------|
-| `max_if_depth` | 최대 if 중첩 깊이 (초과 시 위반) | 미사용 |
-| `max_branches` | 최대 if-else-if 분기 수 (초과 시 위반) | 미사용 |
-| `max_lines` | 최대 메서드 라인 수 (초과 시 위반) | 미사용 |
-| `max_statements` | 최대 statement 수 (초과 시 위반) | 미사용 |
+| `max_if_depth` | maximum if nesting depth; more is a violation | off |
+| `max_branches` | maximum if-else-if branches; more is a violation | off |
+| `max_lines` | maximum lines in the method; more is a violation | off |
+| `max_statements` | maximum statements; more is a violation | off |
 
-> **동작**: `max_if_depth` → `max_branches` → `max_lines` → `max_statements` 순서로 체크하며, 첫 번째 위반에서 이슈를 생성합니다.
-> **참고**: else-if 체인은 depth가 아닌 branch로 카운트됩니다. `if-else if-else if-else`는 depth=1, branches=4입니다.
+> **Order of checks**: `max_if_depth`, `max_branches`, `max_lines`, `max_statements`. The first violation produces the finding.
+> **Note**: an else-if chain counts as branches, not depth. `if-else if-else if-else` is depth 1, branches 4.
 
-#### 예시: 깊은 if-else 중첩 (Arrow Anti-Pattern)
+#### Example: deep if-else nesting (the arrow anti-pattern)
 
 ```yaml
 - id: "quality-mth-001"
-  name: "깊은 if-else 중첩"
+  name: "Deep if-else nesting"
   severity: "high"
   category: "complexity"
-  description: "if-else 중첩이 3단계를 초과합니다"
+  description: "if-else nesting goes deeper than three levels"
   enabled: true
   pattern:
     type: "ast-method"
   custom:
     max_if_depth: 3
-    fix: "Guard Clause(early return) 패턴으로 중첩을 줄이세요"
+    fix: "Flatten it with guard clauses (early returns)"
 ```
 
-#### 예시: 과도한 if-else-if 분기
+#### Example: too many if-else-if branches
 
 ```yaml
 - id: "quality-mth-002"
-  name: "만능 if-else 분기"
+  name: "Catch-all if-else chain"
   severity: "medium"
   category: "complexity"
-  description: "if-else-if 분기가 5개를 초과합니다"
+  description: "More than five if-else-if branches"
   enabled: true
   pattern:
     type: "ast-method"
   custom:
     max_branches: 5
-    fix: "전략 패턴(Strategy), Map 디스패치, 또는 enum으로 전환하세요"
+    fix: "Move to the strategy pattern, a Map dispatch, or an enum"
 ```
 
-#### 예시: Long Method
+#### Example: a long method
 
 ```yaml
 - id: "quality-mth-003"
-  name: "만능 메서드 (Long Method)"
+  name: "Catch-all method (long method)"
   severity: "high"
   category: "complexity"
-  description: "메서드가 100라인을 초과합니다"
+  description: "The method is longer than 100 lines"
   enabled: true
   pattern:
     type: "ast-method"
   custom:
     max_lines: 100
-    fix: "메서드를 조회/검증/처리/저장 등 기능 단위로 분리하세요"
+    fix: "Split it by what it does — read, validate, process, store"
 ```
 
-#### 예시: Service 메서드 statement 수 제한
+#### Example: limiting statements in a Service method
 
 ```yaml
 - id: "custom-svc-statements"
-  name: "Service 메서드 과대"
+  name: "Service method too large"
   severity: "medium"
   category: "complexity"
-  description: "Service 메서드의 statement가 50개를 초과합니다"
+  description: "More than 50 statements in this Service method"
   enabled: true
   pattern:
     type: "ast-method"
     name_pattern: "(process|execute|handle).*"
   custom:
     max_statements: 50
-    fix: "private 메서드로 추출하여 가독성을 높이세요"
+    fix: "Extract private methods so it reads better"
 ```
 
 ---
 
-### 2.8 ast-dead-code — Dead Code 검출
+### 2.8 ast-dead-code — dead code
 
-미사용 private 메서드 또는 미사용 private 필드를 감지합니다. 같은 파일 내에서 선언 이외의 참조가 없으면 위반으로 보고합니다.
+Finds private methods and private fields that are never used. If nothing in the same file references it beyond the declaration, it is reported.
 
-#### custom 설정
+#### The `custom` settings
 
-| 키 | 값 | 설명 |
+| Key | Value | Meaning |
 |----|-----|------|
-| `check_type` | `"private-method"` | 미사용 private 메서드 검출 |
-| `check_type` | `"private-field"` | 미사용 private 필드 검출 |
+| `check_type` | `"private-method"` | find unused private methods |
+| `check_type` | `"private-field"` | find unused private fields |
 
-> **참고**: `static final` 상수 필드는 자동 제외됩니다. `public`/`protected` 멤버는 외부에서 사용될 수 있으므로 검사 대상이 아닙니다.
+> **Note**: `static final` constants are excluded automatically. `public` and `protected` members may be used from elsewhere, so they are not checked.
 
-#### 예시: 미사용 private 메서드
+#### Example: an unused private method
 
 ```yaml
 - id: "quality-dead-method-001"
-  name: "미사용 private 메서드"
+  name: "Unused private method"
   severity: "medium"
   category: "dead-code"
-  description: "private 메서드가 같은 파일 내에서 호출되지 않습니다"
+  description: "This private method is never called in the file that declares it"
   enabled: true
   pattern:
     type: "ast-dead-code"
   custom:
     check_type: "private-method"
-    fix: "사용하지 않는 private 메서드를 삭제하세요"
+    fix: "Delete the unused private method"
 ```
 
-#### 예시: 미사용 private 필드
+#### Example: an unused private field
 
 ```yaml
 - id: "quality-dead-field-001"
-  name: "미사용 private 필드"
+  name: "Unused private field"
   severity: "medium"
   category: "dead-code"
-  description: "private 필드가 선언 외에 사용되지 않습니다"
+  description: "This private field is never used beyond its declaration"
   enabled: true
   pattern:
     type: "ast-dead-code"
   custom:
     check_type: "private-field"
-    fix: "사용하지 않는 private 필드를 삭제하세요"
+    fix: "Delete the unused private field"
 ```
 
 ---
 
-### 2.9 ast-filtered-regex — 주석 오탐 제거 정규식
+### 2.9 ast-filtered-regex — regex with comments filtered out
 
-`regex` 타입과 동일하게 줄 단위 정규식 매칭을 수행하지만, ANTLR4 토큰 스트림을 활용하여 **주석으로만 구성된 라인을 자동 제외**합니다. `// logger.info(...)` 같은 주석 내 패턴에서 오탐이 발생하는 것을 방지합니다.
+Matches line by line exactly as `regex` does, but uses the ANTLR4 token stream to **skip lines that are only a comment**. It keeps a pattern from firing on something like `// logger.info(...)`.
 
-> **Java 전용**: Java AST가 없는 파일에서는 일반 `regex`와 동일하게 동작합니다.
+> **Java only**: on a file with no Java AST it behaves exactly like plain `regex`.
 
-#### 패턴 필드
+#### Pattern fields
 
-| 필드 | 필수 | 설명 | 예시 |
+| Field | Required | Meaning | Example |
 |------|------|------|------|
-| `regex` | ✅ | 정규식 패턴 (regexp2 지원) | `"logger\\.(debug\|info)\\s*\\([^)]*\\+"` |
+| `regex` | ✅ | the pattern (regexp2 syntax) | `"logger\\.(debug\|info)\\s*\\([^)]*\\+"` |
 
-#### 추가 필드
+#### Extra fields
 
-| 필드 | 설명 |
+| Field | Meaning |
 |------|------|
-| `exclude[]` | 매칭된 라인 중 제외할 패턴 목록 |
-| `custom.flags` | `"i"` = 대소문자 무시 |
+| `exclude[]` | patterns that drop a line that otherwise matched |
+| `custom.flags` | `"i"` = case-insensitive |
 
-#### `regex`와의 핵심 차이
+#### How it differs from `regex`
 
 | | `regex` | `ast-filtered-regex` |
 |---|---------|---------------------|
-| 주석 라인 | 매칭됨 (오탐 발생) | 자동 제외 |
-| AST 필요 | ❌ | ✅ (없으면 regex 폴백) |
-| 성능 | 빠름 | 약간 느림 (토큰 분석) |
-| 사용 시점 | 오탐 무관한 패턴 | 주석에서 오탐이 잦은 패턴 |
+| A comment line | matches, and misfires | skipped automatically |
+| Needs an AST | ❌ | ✅ (falls back to regex without one) |
+| Speed | fast | slightly slower (it tokenizes) |
+| When to use it | patterns that do not misfire | patterns that keep firing on comments |
 
-#### 예시: Logger 문자열 연결 (주석 내 오탐 제거)
+#### Example: logger string concatenation, without the comment misfires
 
 ```yaml
 - id: "quality-lg-005"
-  name: "Logger 문자열 연결 사용"
+  name: "String concatenation in a logger call"
   severity: "high"
   category: "logging"
-  description: "Logger에서 '+' 연산자로 문자열 연결은 금지됩니다. {} 플레이스홀더를 사용하세요."
+  description: "Do not build a log message with '+'. Use {} placeholders."
   enabled: true
   pattern:
     type: "ast-filtered-regex"
     regex: "logger\\.(debug|info|warn|error)\\s*\\([^)]*\\+[^)]*\\)"
   custom:
     rule_id: "LG-005"
-    fix: "{} 플레이스홀더를 사용하세요: logger.info(\"message: {}\", value)"
+    fix: "Use {} placeholders: logger.info(\"message: {}\", value)"
 ```
 
-검출 대상:
+What it catches:
 ```java
-logger.info("사용자: " + userId);      // ← 위반! + 연산자 사용
-// logger.info("test" + value);        // ← ast-filtered-regex는 주석이므로 제외
+logger.info("user: " + userId);        // ← violation, uses +
+// logger.info("test" + value);        // ← a comment, so ast-filtered-regex skips it
 ```
 
-#### 예시: 메서드 체인 과다 (exclude 활용)
+#### Example: long method chains (using exclude)
 
 ```yaml
 - id: "quality-chain-004"
-  name: "과도한 메서드 체인"
+  name: "Method chain too long"
   severity: "low"
   category: "maintainability"
-  description: "메서드 체인이 4단계 이상입니다. 가독성을 위해 중간 변수를 사용하세요."
+  description: "The chain is four calls or longer. Break it with an intermediate variable."
   enabled: true
   pattern:
     type: "ast-filtered-regex"
@@ -862,42 +862,42 @@ logger.info("사용자: " + userId);      // ← 위반! + 연산자 사용
     - "StringBuilder"
     - "StringBuffer"
   custom:
-    fix: "중간 변수를 사용하여 체인을 분리하세요"
+    fix: "Split the chain with an intermediate variable"
 ```
 
 ---
 
-### 2.10 ast-multi-cud — 다건 CUD 트랜잭션 검사
+### 2.10 ast-multi-cud — multi-row CUD without a transaction
 
-Service 메서드 내에서 **2개 이상의 CUD(Create/Update/Delete) 호출**이 있지만 `@Transactional` 어노테이션이 없는 경우를 감지합니다. 트랜잭션 없이 다건 CUD를 수행하면 중간 실패 시 데이터 정합성이 깨질 수 있습니다.
+Finds a Service method that makes **two or more create/update/delete calls** without `@Transactional`. Without a transaction, a failure halfway through leaves the data inconsistent.
 
-#### 패턴 필드
+#### Pattern fields
 
-| 필드 | 필수 | 설명 | 예시 |
+| Field | Required | Meaning | Example |
 |------|------|------|------|
-| `method` | ✅ | CUD 메서드명 정규식 | `"insert\|update\|delete\|save"` |
-| `qualifier` | - | 호출 대상 객체 정규식 | `".*Mapper\|.*Repository"` |
+| `method` | ✅ | regex for the CUD method names | `"insert\|update\|delete\|save"` |
+| `qualifier` | - | regex for the object called | `".*Mapper\|.*Repository"` |
 
-#### custom 설정
+#### The `custom` settings
 
-| 키 | 설명 | 기본값 |
+| Key | Meaning | Default |
 |----|------|--------|
-| `min_cud_calls` | 최소 CUD 호출 수 (이상이면 위반) | `2` |
+| `min_cud_calls` | how many CUD calls make it a violation | `2` |
 
-#### 동작 방식
+#### How it runs
 
-1. 메서드별로 `@Transactional` 어노테이션 유무 확인
-2. `@Transactional`이 없는 메서드에서 `method` + `qualifier` 패턴에 매칭되는 호출 수 카운트
-3. 호출 수 >= `min_cud_calls`이면 위반 보고
+1. For each method, check whether it has `@Transactional`
+2. In methods without it, count the calls matching `method` and `qualifier`
+3. Report a violation when the count reaches `min_cud_calls`
 
-#### 예시: 다건 CUD에 @Transactional 누락
+#### Example: several CUD calls with no @Transactional
 
 ```yaml
 - id: "spring-tx-005"
-  name: "@Transactional 누락 (다건 CUD)"
+  name: "@Transactional missing (several CUD calls)"
   severity: "high"
   category: "transaction"
-  description: "2개 이상의 CUD 작업을 호출하지만 @Transactional이 없어 데이터 정합성이 보장되지 않습니다."
+  description: "Two or more CUD calls with no @Transactional, so the data can be left inconsistent."
   enabled: true
   pattern:
     type: "ast-multi-cud"
@@ -906,196 +906,196 @@ Service 메서드 내에서 **2개 이상의 CUD(Create/Update/Delete) 호출**�
   custom:
     min_cud_calls: 2
     rule_id: "SPRING-TX-005"
-    fix: "@Transactional을 추가하거나, 트랜잭션이 있는 메서드로 위임하세요"
+    fix: "Add @Transactional, or delegate to a method that has one"
 ```
 
-검출 대상:
+What it catches:
 ```java
-// @Transactional 없음!
+// no @Transactional
 public void transferMoney(String from, String to, int amount) {
     accountMapper.updateBalance(from, -amount);  // CUD 1
-    accountMapper.updateBalance(to, amount);      // CUD 2 → 위반!
+    accountMapper.updateBalance(to, amount);      // second CUD → violation
 }
 ```
 
-정상 코드:
+Code that passes:
 ```java
 @Transactional
 public void transferMoney(String from, String to, int amount) {
     accountMapper.updateBalance(from, -amount);
-    accountMapper.updateBalance(to, amount);     // @Transactional 있으므로 통과
+    accountMapper.updateBalance(to, amount);     // @Transactional is present, so it passes
 }
 ```
 
 ---
 
-### 2.11 cross-file — 크로스파일 분석
+### 2.11 cross-file — cross-file analysis
 
-여러 파일을 교차 분석하여 파일 간 불일치를 감지합니다. 현재 **MyBatis 미사용 SQL ID** 검출을 지원합니다.
+Cross-checks several files against each other to find mismatches between them. Today it covers **unused MyBatis SQL IDs**.
 
-#### 동작 방식
+#### How it runs
 
-1. XML Mapper 파일에서 `<select>`, `<insert>`, `<update>`, `<delete>` 태그의 `id` 속성 수집
-2. 같은 디렉토리(또는 프로젝트) 내 Java 파일에서 해당 SQL ID가 참조되는지 확인
-3. Java 코드에서 메서드 호출(`mapper.sqlId(`) 또는 문자열 참조(`"namespace.sqlId"`)가 없으면 위반
+1. Collect the `id` attributes of `<select>`, `<insert>`, `<update>` and `<delete>` in the XML mappers
+2. Look for references to those SQL IDs in the Java files of the same directory (or project)
+3. Report a violation when the Java code has neither a call (`mapper.sqlId(`) nor a string reference (`"namespace.sqlId"`)
 
-> **주의**: 이 규칙은 Analyzer 레벨에서 동작합니다. `pattern.type: "cross-file"`로 선언하면 자동으로 크로스파일 분석이 활성화됩니다.
+> **Note**: this runs at the analyzer level. Declaring `pattern.type: "cross-file"` switches cross-file analysis on by itself.
 
-#### 예시: 미사용 MyBatis SQL ID
+#### Example: an unused MyBatis SQL ID
 
 ```yaml
 - id: "quality-mybatis-unused-001"
-  name: "미사용 MyBatis SQL ID"
+  name: "Unused MyBatis SQL ID"
   severity: "medium"
   category: "dead-code"
-  description: "MyBatis XML의 SQL ID가 Java 코드에서 사용되지 않습니다"
+  description: "This SQL ID in the MyBatis XML is never used from Java"
   enabled: true
   pattern:
     type: "cross-file"
   custom:
-    fix: "사용하지 않는 SQL 매핑을 제거하거나 Mapper 인터페이스 메서드를 추가하세요"
+    fix: "Remove the unused mapping, or add the matching Mapper interface method"
 ```
 
-검출 대상:
+What it catches:
 ```xml
 <!-- UserMapper.xml -->
-<select id="selectDeletedUsers" resultType="UserVo">  <!-- Java에서 미사용 → 위반! -->
+<select id="selectDeletedUsers" resultType="UserVo">  <!-- never used from Java → violation -->
     SELECT * FROM TB_USER WHERE del_yn = 'Y'
 </select>
 ```
 
-#### 예시: Mapper Interface → XML 역방향 불일치
+#### Example: the other direction — Mapper interface to XML
 
-Mapper 인터페이스 메서드에 대응하는 XML SQL ID가 없으면 런타임 BindingException 발생:
+A Mapper interface method with no matching XML SQL ID throws a BindingException at runtime:
 
 ```yaml
 - id: "quality-mapper-no-xml-001"
-  name: "Mapper 메서드에 대응 XML SQL ID 없음"
+  name: "Mapper method has no matching XML SQL ID"
   severity: "high"
   category: "cross-file"
-  description: "Mapper 인터페이스 메서드에 대응하는 XML SQL ID가 없습니다"
+  description: "This Mapper interface method has no matching SQL ID in the XML"
   enabled: true
   pattern:
     type: "cross-file"
   custom:
-    fix: "XML Mapper에 대응하는 SQL ID를 추가하세요"
+    fix: "Add the matching SQL ID to the XML mapper"
 ```
 
-#### 예시: resultMap property ↔ VO 필드 불일치
+#### Example: a resultMap property with no matching VO field
 
-XML resultMap의 property가 VO 클래스에 존재하지 않으면 런타임 매핑 실패:
+If a resultMap property does not exist on the VO class, the mapping fails at runtime:
 
 ```yaml
 - id: "quality-resultmap-vo-001"
-  name: "resultMap property와 VO 필드 불일치"
+  name: "resultMap property does not match the VO"
   severity: "high"
   category: "cross-file"
-  description: "resultMap의 property가 VO 클래스에 존재하지 않습니다"
+  description: "This resultMap property does not exist on the VO class"
   enabled: true
   pattern:
     type: "cross-file"
   custom:
-    fix: "VO 클래스에 필드를 추가하거나 property명을 수정하세요"
+    fix: "Add the field to the VO, or correct the property name"
 ```
 
-#### 예시: 미사용 Service 메서드
+#### Example: an unused Service method
 
-Service 메서드가 Controller나 다른 Service에서 호출되지 않으면 dead code:
+A Service method that no Controller and no other Service calls is dead code:
 
 ```yaml
 - id: "quality-unused-service-001"
-  name: "미사용 Service 메서드"
+  name: "Unused Service method"
   severity: "medium"
   category: "dead-code"
-  description: "Service 메서드가 다른 파일에서 호출되지 않습니다"
+  description: "This Service method is not called from any other file"
   enabled: true
   pattern:
     type: "cross-file"
   custom:
-    fix: "사용하지 않는 Service 메서드를 제거하세요"
+    fix: "Remove the unused Service method"
 ```
 
-#### 예시: 미사용 VO/DTO 파일
+#### Example: an unused VO/DTO file
 
-VO/DTO 클래스가 다른 파일에서 전혀 참조되지 않으면 삭제 대상:
+A VO/DTO class that no other file references at all can go:
 
 ```yaml
 - id: "quality-unused-vo-001"
-  name: "미사용 VO/DTO 파일"
+  name: "Unused VO/DTO file"
   severity: "medium"
   category: "dead-code"
-  description: "VO/DTO 클래스가 다른 파일에서 전혀 참조되지 않습니다"
+  description: "This VO/DTO class is not referenced from any other file"
   enabled: true
   pattern:
     type: "cross-file"
   custom:
-    fix: "사용하지 않는 VO/DTO 파일을 삭제하세요"
+    fix: "Delete the unused VO/DTO file"
 ```
 
 ---
 
-## 정규식 작성 시 주의사항
+## Things to watch when writing the regex
 
-### 1. 백슬래시 이스케이핑
+### 1. Escaping backslashes
 
-YAML에서 백슬래시는 `\\`로 작성해야 합니다:
+In YAML a backslash must be written `\\`:
 
 ```yaml
-# ✅ 올바른 예
+# ✅ correct
 regex: "System\\.out\\.print"
 regex: "\\bSELECT\\b"
 
-# ❌ 잘못된 예
+# ❌ wrong
 regex: "System\.out\.print"
 regex: "\bSELECT\b"
 ```
 
-### 2. 특수문자 이스케이핑
+### 2. Escaping special characters
 
-| 문자 | 이스케이프 | 의미 |
+| Character | Escaped | Meaning |
 |------|-----------|------|
-| `.` | `\\.` | 리터럴 점 |
-| `*` | `\\*` | 리터럴 별표 |
-| `(` | `\\(` | 리터럴 괄호 |
-| `{` | `\\{` | 리터럴 중괄호 |
-| `$` | `\\$` | 리터럴 달러 |
-| `|` | `\|` | OR (이스케이프 불필요) |
+| `.` | `\\.` | a literal dot |
+| `*` | `\\*` | a literal asterisk |
+| `(` | `\\(` | a literal parenthesis |
+| `{` | `\\{` | a literal brace |
+| `$` | `\\$` | a literal dollar sign |
+| `|` | `\|` | alternation (no escape needed) |
 
-### 3. 자주 사용하는 정규식 패턴
+### 3. Patterns you will reach for
 
-| 패턴 | 설명 |
+| Pattern | Meaning |
 |------|------|
-| `\\b` | 단어 경계 |
-| `\\s+` | 하나 이상의 공백 |
-| `\\w+` | 하나 이상의 단어 문자 |
-| `[^)]*` | `)` 가 아닌 모든 문자 |
+| `\\b` | word boundary |
+| `\\s+` | one or more spaces |
+| `\\w+` | one or more word characters |
+| `[^)]*` | anything but `)` |
 | `(?!pattern)` | Negative lookahead |
-| `(?i)` | Case-insensitive 플래그 (정규식 내) |
-| `^prefix` | 문자열 시작이 prefix |
-| `suffix$` | 문자열 끝이 suffix |
+| `(?i)` | case-insensitive, inline |
+| `^prefix` | starts with prefix |
+| `suffix$` | ends with suffix |
 
-### 4. 정규식 테스트
+### 4. Testing the regex
 
-규칙을 추가하기 전에 정규식을 테스트하는 것이 좋습니다:
+Test the pattern before you add the rule:
 
-- [regex101.com](https://regex101.com/) — PCRE 모드 선택
+- [regex101.com](https://regex101.com/) — choose PCRE mode
 - [regexr.com](https://regexr.com/)
 
 ---
 
-## 새 규칙 추가 절차
+## Adding a new rule, step by step
 
-### 1. 기존 룰셋에 추가
+### 1. Add it to an existing ruleset
 
-적절한 룰셋 파일을 선택하여 규칙을 추가합니다:
+Pick the ruleset file it belongs in and add the rule:
 
 ```bash
 vi configs/rulesets/quality.yaml
 ```
 
-### 2. 새 룰셋 파일 생성
+### 2. Create a new ruleset file
 
-새로운 카테고리의 규칙이 많다면 별도 파일을 생성할 수 있습니다:
+If you have many rules in a new category, give them their own file:
 
 ```yaml
 # configs/rulesets/custom.yaml
@@ -1106,508 +1106,508 @@ languages:
   - language: java
     rules:
       - id: "custom-rule-001"
-        # ... 규칙 정의
+        # ... the rule definitions
 ```
 
-그리고 `profiles.yaml`에 프로파일을 추가합니다:
+Then register the profile in `profiles.yaml`:
 
 ```yaml
 # configs/profiles.yaml
 profiles:
   custom:
-    name: "커스텀 규칙"
-    description: "프로젝트 맞춤 규칙"
+    name: "Custom rules"
+    description: "Rules specific to this project"
     source: "rulesets/custom.yaml"
     languages:
       - java
 ```
 
-### 3. 테스트
+### 3. Test it
 
 ```bash
-# 빌드
+# build
 make dev
 
-# 새 규칙이 포함된 프로파일로 테스트
+# run the profile that includes the new rule
 ./build/apex /path/to/source --profile=custom
 
-# 특정 카테고리만 검사
+# check one category only
 ./build/apex /path/to/source --profile=quality --categories=performance
 
-# JSON 출력으로 상세 분석
+# JSON output, to look closer
 ./build/apex /path/to/source --profile=quality -o json --output-file=report.json
 ```
 
 ---
 
-## 언어별 규칙 적용
+## Rules per language
 
-각 언어에 맞는 규칙을 정의할 수 있습니다. **AST 쿼리 규칙(`ast-*`)은 Java 전용**입니다.
+You can define rules for each language. **AST query rules (`ast-*`) are Java only.**
 
 ```yaml
 languages:
   - language: java
     rules:
-      - id: "java-rule"        # regex, ast-* 모두 사용 가능
+      - id: "java-rule"        # regex and ast-* both work
 
   - language: javascript
     rules:
-      - id: "js-rule"          # regex만 사용 가능
+      - id: "js-rule"          # regex only
 
   - language: sql
     rules:
-      - id: "sql-rule"         # regex만 사용 가능
+      - id: "sql-rule"         # regex only
 ```
 
-지원 언어: `java`, `javascript`, `html`, `css`, `sql`, `xml`, `properties`
+Supported languages: `java`, `javascript`, `html`, `css`, `sql`, `xml`, `properties`
 
 ---
 
-## 기존 카테고리 목록
+## The categories already in use
 
-일관성을 위해 기존 카테고리를 사용하는 것이 좋습니다:
+Reuse one of these rather than inventing a category:
 
-| 카테고리 | 설명 | 룰셋 |
+| Category | Meaning | Rulesets |
 |----------|------|------|
-| `naming` | 명명규칙 | quality, egov |
-| `security` | 보안 | secure, egov |
-| `logging` | 로깅 | quality, egov |
-| `exception` | 예외처리 | quality, spring, egov |
-| `style` | 코딩 스타일 | quality |
-| `performance` | 성능 | quality |
-| `design` | 설계/구조 | quality, spring |
-| `architecture` | 아키텍처 | spring |
-| `deprecated` | 폐기된 API 사용 | quality |
-| `resource` | 리소스 관리 | quality |
-| `documentation` | 문서화 | quality |
-| `maintainability` | 유지보수성 | quality |
-| `code-quality` | 코드 품질 | quality |
-| `annotation` | 어노테이션 | quality |
-| `egov-migration` | eGovFrame 마이그레이션 | modernize |
-| `jakarta-migration` | javax→jakarta 전환 | modernize |
-| `spring-migration` | Spring deprecated 교체 | modernize |
-| `ibatis-migration` | iBatis→MyBatis 전환 | modernize |
-| `java-modernize` | Java 레거시 API 현대화 | modernize |
-| `dependency-injection` | DI 패턴 | spring |
-| `transaction` | @Transactional 관련 | spring |
-| `rest-api` | REST API 패턴 | spring |
-| `thread-safety` | 스레드 안전성 | spring |
-| `testing` | 테스트 패턴 | spring |
-| `egov-standard` | 전자정부 표준 | egov |
-| `egov-common` | 공통 컴포넌트 활용 | egov |
-| `method-naming` | CRUD 메서드 접두사 | egov |
-| `mybatis` | MyBatis XML 표준 | egov |
+| `naming` | naming conventions | quality, egov |
+| `security` | security | secure, egov |
+| `logging` | logging | quality, egov |
+| `exception` | exception handling | quality, spring, egov |
+| `style` | coding style | quality |
+| `performance` | performance | quality |
+| `design` | design and structure | quality, spring |
+| `architecture` | architecture | spring |
+| `deprecated` | use of a deprecated API | quality |
+| `resource` | resource handling | quality |
+| `documentation` | documentation | quality |
+| `maintainability` | maintainability | quality |
+| `code-quality` | code quality | quality |
+| `annotation` | annotations | quality |
+| `egov-migration` | eGovFrame migration | modernize |
+| `jakarta-migration` | javax → jakarta | modernize |
+| `spring-migration` | replacing deprecated Spring APIs | modernize |
+| `ibatis-migration` | iBatis → MyBatis | modernize |
+| `java-modernize` | modernizing legacy Java APIs | modernize |
+| `dependency-injection` | DI patterns | spring |
+| `transaction` | @Transactional | spring |
+| `rest-api` | REST API patterns | spring |
+| `thread-safety` | thread safety | spring |
+| `testing` | testing patterns | spring |
+| `egov-standard` | eGovernment standards | egov |
+| `egov-common` | using the common components | egov |
+| `method-naming` | CRUD method prefixes | egov |
+| `mybatis` | MyBatis XML standards | egov |
 
 ---
 
-## 문제 해결
+## Troubleshooting
 
-### 규칙이 동작하지 않을 때
+### The rule is not firing
 
-1. `enabled: true` 확인
-2. 정규식 문법 검증 (regex101.com)
-3. 백슬래시 이스케이핑 확인 (`\\`)
-4. AST 규칙의 경우 Java 파일인지 확인 (ast-* 타입은 Java 전용)
-5. verbose 모드로 실행: `./build/apex -v`
+1. Check `enabled: true`
+2. Check the regex syntax (regex101.com)
+3. Check the backslash escaping (`\\`)
+4. For an AST rule, check the file is Java (`ast-*` is Java only)
+5. Run it verbose: `./build/apex -v`
 
-### AST 규칙에서 예상보다 적게 검출될 때
+### An AST rule finds less than you expected
 
-1. `qualifier` 정규식이 너무 엄격하지 않은지 확인
-2. `context` 조건이 올바른지 확인 (예: `inside-loop` vs `inside-catch`)
-3. `method` 패턴에 `^`/`$` 앵커가 필요한지 확인
+1. Check the `qualifier` regex is not too strict
+2. Check the `context` condition is the one you meant (`inside-loop` vs `inside-catch`)
+3. Check whether the `method` pattern needs `^` or `$` anchors
 
-### 너무 많은 이슈가 감지될 때
+### It finds far too much
 
-1. `exclude` 패턴 추가 (regex 타입)
-2. 정규식/패턴을 더 구체적으로 수정
-3. `context` 필드로 범위 한정
-4. `class_annotation` 이나 `has_annotation`으로 대상 클래스 한정
-5. `severity` 조정 후 `--min-severity` 옵션 활용
+1. Add `exclude` patterns (regex types)
+2. Make the pattern more specific
+3. Narrow the scope with `context`
+4. Narrow the classes with `class_annotation` or `has_annotation`
+5. Adjust `severity` and filter with `--min-severity`
 
-### 정규식 성능 문제
+### Regex performance
 
-- 정규식 매칭에는 100ms 타임아웃이 설정되어 있습니다
-- 복잡한 정규식은 성능에 영향을 줄 수 있으니 가능한 단순하게 작성하세요
-- `.*`보다 `[^)]*` 같은 구체적 패턴이 더 빠릅니다
+- Regex matching has a 100 ms timeout
+- A complex pattern costs time; keep it as simple as it can be
+- A specific pattern like `[^)]*` is faster than `.*`
 
 ---
 
-## Part 3: 신규 룰셋 실전 가이드
+## Part 3: the newer rulesets in practice
 
-### 3.1 modernize — 레거시 현대화 규칙
+### 3.1 modernize — legacy modernization
 
-레거시 코드를 현대 기술 스택으로 마이그레이션할 때 사용합니다. **regex**, **ast-import** 타입을 조합하여 50개 규칙을 YAML만으로 구현했습니다.
+For migrating legacy code onto a current stack. All 50 rules are written in YAML alone, combining the **regex** and **ast-import** types.
 
-#### 카테고리 구성
+#### What is in it
 
-| 카테고리 | 규칙 수 | 패턴 타입 | 설명 |
+| Category | Rules | Pattern types | What it covers |
 |----------|---------|-----------|------|
-| `egov-migration` | 5 | ast-import, regex | eGovFrame 3.x→4.x 패키지/경로 변경 |
-| `jakarta-migration` | 10 | ast-import | javax.*→jakarta.* 네임스페이스 변경 |
-| `spring-migration` | 10 | regex | Spring deprecated 클래스 교체 |
-| `ibatis-migration` | 8 | regex, ast-import | iBatis→MyBatis API 전환 |
-| `java-modernize` | 12 | regex, ast-import | Java 레거시 API 현대화 |
-| (XML) | 5 | regex | iBatis XML 태그, Spring bean XML |
+| `egov-migration` | 5 | ast-import, regex | eGovFrame 3.x → 4.x package and path changes |
+| `jakarta-migration` | 10 | ast-import | javax.* → jakarta.* namespace change |
+| `spring-migration` | 10 | regex | replacing deprecated Spring classes |
+| `ibatis-migration` | 8 | regex, ast-import | iBatis → MyBatis API changes |
+| `java-modernize` | 12 | regex, ast-import | modernizing legacy Java APIs |
+| (XML) | 5 | regex | iBatis XML tags, Spring bean XML |
 
-#### 규칙 작성 패턴별 예시
+#### Examples by pattern type
 
-**ast-import** — 패키지 마이그레이션 (가장 정확한 방식):
+**ast-import** — package migration, the most precise way:
 
 ```yaml
 - id: "mod-jakarta-001"
-  name: "javax.servlet 사용"
+  name: "javax.servlet in use"
   severity: "high"
   category: "jakarta-migration"
-  description: "javax.servlet은 Spring Boot 3.x/Jakarta EE 9+에서 jakarta.servlet으로 변경되었습니다."
+  description: "javax.servlet became jakarta.servlet in Spring Boot 3.x and Jakarta EE 9+."
   enabled: true
   pattern:
     type: "ast-import"
     import: "^javax\\.servlet\\."
   custom:
     rule_id: "MOD-JAKARTA-001"
-    fix: "jakarta.servlet 패키지로 변경하세요"
+    fix: "Change it to the jakarta.servlet package"
     since: "Jakarta EE 9 / Spring Boot 3.0"
 ```
 
-> **ast-import vs regex**: import 검사는 `ast-import`가 정확합니다. `regex`로 `import javax.servlet`을 검색하면 주석이나 문자열 리터럴에서 오탐이 발생할 수 있지만, `ast-import`는 AST에서 추출한 실제 import문만 검사합니다.
+> **ast-import vs regex**: for imports, `ast-import` is the accurate one. A `regex` search for `import javax.servlet` can fire on a comment or a string literal; `ast-import` only looks at the import statements the AST actually holds.
 
-**regex** — 메서드 호출/클래스 참조 검사:
+**regex** — method calls and class references:
 
 ```yaml
 - id: "mod-ibatis-003"
-  name: "queryForObject() 사용 (iBatis)"
+  name: "queryForObject() in use (iBatis)"
   severity: "high"
   category: "ibatis-migration"
-  description: "queryForObject()는 iBatis 메서드입니다. MyBatis의 selectOne()을 사용하세요."
+  description: "queryForObject() is an iBatis method. Use MyBatis selectOne()."
   enabled: true
   pattern:
     type: "regex"
     regex: "\\.queryForObject\\s*\\("
   custom:
-    fix: "selectOne() 또는 Mapper 인터페이스 메서드를 사용하세요"
+    fix: "Use selectOne(), or a Mapper interface method"
 ```
 
-**XML 규칙** — iBatis/Spring XML 태그 검사:
+**XML rules** — iBatis and Spring XML tags:
 
 ```yaml
 - id: "mod-xml-002"
-  name: "iBatis isNotNull/isEqual 태그"
+  name: "iBatis isNotNull/isEqual tags"
   severity: "high"
   category: "ibatis-migration"
-  description: "<isNotNull>, <isEqual> 등은 iBatis 동적 SQL 태그입니다."
+  description: "<isNotNull>, <isEqual> and friends are iBatis dynamic SQL tags."
   enabled: true
   pattern:
     type: "regex"
     regex: "<(isNotNull|isNotEmpty|isNull|isEmpty|isEqual|isNotEqual)\\b"
   custom:
-    fix: "<if test=\"...\"> 또는 <choose>/<when> 으로 변경하세요"
+    fix: "Change them to <if test=\"...\">, or <choose>/<when>"
 ```
 
-#### 커스텀 modernize 규칙 추가 예시
+#### Adding your own modernize rule
 
-프로젝트에 특화된 레거시 검출 규칙을 추가하려면:
+To add a rule for legacy code specific to your project:
 
 ```yaml
-# configs/rulesets/modernize.yaml 에 추가
+# add it to configs/rulesets/modernize.yaml
 - id: "mod-custom-001"
-  name: "프로젝트 구버전 유틸리티 사용"
+  name: "Old in-house utility package in use"
   severity: "medium"
   category: "java-modernize"
-  description: "com.mycompany.legacy.util 패키지는 신규 패키지로 이전되었습니다"
+  description: "The com.mycompany.legacy.util package has moved"
   enabled: true
   pattern:
     type: "ast-import"
     import: "^com\\.mycompany\\.legacy\\.util\\."
   custom:
-    fix: "com.mycompany.core.util 패키지로 변경하세요"
+    fix: "Change it to com.mycompany.core.util"
 ```
 
 ---
 
-### 3.2 spring — Spring 개발 표준 규칙
+### 3.2 spring — Spring development standards
 
-Spring/Spring Boot 프로젝트의 아키텍처 및 코딩 표준을 검사합니다. **regex**, **regex-multiline**, **ast-class** 타입을 조합합니다.
+Checks the architecture and coding standards of a Spring or Spring Boot project, combining the **regex**, **regex-multiline** and **ast-class** types.
 
-#### 카테고리 구성
+#### What is in it
 
-| 카테고리 | 규칙 수 | 패턴 타입 | 설명 |
+| Category | Rules | Pattern types | What it covers |
 |----------|---------|-----------|------|
-| `dependency-injection` | 3 | regex | @Autowired/@Inject/@Resource 필드 주입 경고 |
-| `transaction` | 3 | regex-multiline | @Transactional 올바른 사용 |
-| `architecture` | 3 | regex-multiline, ast-class | Controller→Service→Repository 계층 위반 |
-| `rest-api` | 4 | regex, regex-multiline | REST API 응답 패턴 |
-| `thread-safety` | 2 | regex, regex-multiline | 싱글톤 빈 상태 관리 |
-| `exception` | 3 | regex, regex-multiline | 예외 처리 표준 |
+| `dependency-injection` | 3 | regex | field injection via @Autowired/@Inject/@Resource |
+| `transaction` | 3 | regex-multiline | using @Transactional correctly |
+| `architecture` | 3 | regex-multiline, ast-class | breaking the Controller → Service → Repository layering |
+| `rest-api` | 4 | regex, regex-multiline | REST API response patterns |
+| `thread-safety` | 2 | regex, regex-multiline | state on a singleton bean |
+| `exception` | 3 | regex, regex-multiline | exception handling standards |
 | `testing` | 3 | regex, regex-multiline | @SpringBootTest, Thread.sleep |
-| `security` | 2 | regex | CORS, CSRF 설정 |
+| `security` | 2 | regex | CORS and CSRF configuration |
 
-#### 핵심 패턴: regex vs regex-multiline 선택
+#### The key choice: regex or regex-multiline
 
-**regex** (한 줄 매칭) — 패턴이 한 줄에 완결되는 경우:
+**regex** (line by line) — when the pattern fits on one line:
 
 ```yaml
-# @Autowired가 줄 끝에 단독으로 있으면 필드 주입
+# @Autowired alone at the end of a line means field injection
 - id: "spring-di-001"
   pattern:
     type: "regex"
     regex: "@Autowired\\s*$"
 ```
 
-**regex-multiline** (멀티라인 매칭) — 어노테이션과 코드가 다른 줄에 있는 경우:
+**regex-multiline** (whole file) — when the annotation and the code are on different lines:
 
 ```yaml
-# @Controller 클래스 안에서 JdbcTemplate 사용 (여러 줄에 걸침)
+# JdbcTemplate inside a @Controller class (spans lines)
 - id: "spring-ctrl-002"
   pattern:
     type: "regex-multiline"
     regex: "@(Controller|RestController)[\\s\\S]*?(JdbcTemplate|DataSource)\\s+\\w+"
 ```
 
-> **주의**: `regex` 타입은 줄 단위로 매칭합니다. 패턴에 `\n`, `[\s\S]` 등 여러 줄에 걸치는 표현이 있으면 반드시 `regex-multiline`을 사용하세요. 이것을 틀리면 규칙이 절대 매칭되지 않습니다.
+> **Careful**: `regex` matches line by line. If your pattern contains `\n` or `[\s\S]` — anything that spans lines — it must be `regex-multiline`. Get this wrong and the rule never matches at all.
 
-**ast-class** — Controller/Service 클래스 구조 검사:
+**ast-class** — the shape of a Controller or Service class:
 
 ```yaml
-# Controller 메서드 수 제한
+# limit the methods on a Controller
 - id: "spring-ctrl-005"
   pattern:
     type: "ast-class"
     name_pattern: ".*Controller$"
   custom:
     max_methods: 15
-    fix: "비즈니스 로직을 Service 레이어로 이동하세요"
+    fix: "Move the business logic into the Service layer"
 ```
 
-**ast-method** — 메서드 구조 분석 (if 중첩, 분기 수, Long Method):
+**ast-method** — method shape (if nesting, branch count, long methods):
 
 ```yaml
-# 깊은 if-else 중첩 검출
+# deep if-else nesting
 - id: "quality-mth-001"
   pattern:
     type: "ast-method"
   custom:
     max_if_depth: 3
-    fix: "Guard Clause(early return) 패턴으로 중첩을 줄이세요"
+    fix: "Flatten it with guard clauses (early returns)"
 
-# 과도한 if-else-if 분기 검출
+# too many if-else-if branches
 - id: "quality-mth-002"
   pattern:
     type: "ast-method"
   custom:
     max_branches: 5
-    fix: "전략 패턴이나 Map 디스패치로 전환하세요"
+    fix: "Move to the strategy pattern, or a Map dispatch"
 
-# Long Method 검출
+# long methods
 - id: "quality-mth-003"
   pattern:
     type: "ast-method"
   custom:
     max_lines: 100
-    fix: "기능 단위로 메서드를 분리하세요"
+    fix: "Split the method by what it does"
 ```
 
-#### 커스텀 spring 규칙 추가 예시
+#### Adding your own spring rule
 
 ```yaml
-# @Async 메서드에 반환타입 검사
+# check the return type of an @Async method
 - id: "spring-custom-001"
-  name: "@Async void 반환"
+  name: "@Async returning void"
   severity: "medium"
   category: "design"
-  description: "@Async void 메서드는 예외를 호출자에게 전달할 수 없습니다"
+  description: "An @Async void method cannot report its exception back to the caller"
   enabled: true
   pattern:
     type: "regex-multiline"
     regex: "@Async.*\\n\\s*public\\s+void\\s+"
   custom:
-    fix: "Future<T> 또는 CompletableFuture<T>를 반환하세요"
+    fix: "Return Future<T> or CompletableFuture<T>"
 
-# @Value 직접 사용 대신 @ConfigurationProperties 권장
+# prefer @ConfigurationProperties over many @Value fields
 - id: "spring-custom-002"
-  name: "@Value 과다 사용"
+  name: "Too many @Value fields"
   severity: "low"
   category: "design"
-  description: "@Value가 많으면 @ConfigurationProperties로 그룹화하세요"
+  description: "With this many @Value fields, group them with @ConfigurationProperties"
   enabled: true
   pattern:
     type: "regex"
     regex: "@Value\\s*\\(\\s*\"\\$\\{"
   custom:
-    fix: "@ConfigurationProperties(prefix=\"...\")로 그룹화하세요"
+    fix: "Group them under @ConfigurationProperties(prefix=\"...\")"
 ```
 
 ---
 
-### 3.3 egov — 전자정부프레임워크 표준 규칙
+### 3.3 egov — eGovernment Framework standards
 
-전자정부 표준프레임워크의 아키텍처, 명명규칙, 공통 컴포넌트 활용을 검사합니다. **regex**, **regex-multiline**, **ast-class** 타입을 조합합니다.
+Checks the architecture, naming and use of common components in the Korean eGovernment Standard Framework, combining the **regex**, **regex-multiline** and **ast-class** types.
 
-#### 카테고리 구성
+#### What is in it
 
-| 카테고리 | 규칙 수 | 패턴 타입 | 설명 |
+| Category | Rules | Pattern types | What it covers |
 |----------|---------|-----------|------|
-| `naming` | 6 | regex, regex-multiline | Controller/Service/Mapper/VO 접미사, 패키지 구조 |
-| `egov-standard` | 4 | regex, regex-multiline, ast-class | ServiceImpl 상속, 계층 위반, 과대 클래스 |
-| `egov-common` | 5 | regex, regex-multiline | 공통 컴포넌트(파일업로드, 페이징, ID생성) 활용 |
-| `method-naming` | 4 | regex-multiline | CRUD 메서드 접두사 (select*/insert*/update*/delete*) |
-| `exception` | 3 | regex, regex-multiline | EgovBizException, throws 표준 |
-| `logging` | 3 | regex | System.out, Logger 문자열 연결, printStackTrace |
-| `security` | 2 | regex | XSS 필터, SQL Injection |
+| `naming` | 6 | regex, regex-multiline | Controller/Service/Mapper/VO suffixes, package layout |
+| `egov-standard` | 4 | regex, regex-multiline, ast-class | ServiceImpl inheritance, broken layering, oversized classes |
+| `egov-common` | 5 | regex, regex-multiline | using the common components (file upload, paging, ID generation) |
+| `method-naming` | 4 | regex-multiline | CRUD method prefixes (select*/insert*/update*/delete*) |
+| `exception` | 3 | regex, regex-multiline | EgovBizException and throws conventions |
+| `logging` | 3 | regex | System.out, logger string concatenation, printStackTrace |
+| `security` | 2 | regex | XSS filtering, SQL injection |
 | `mybatis` (XML) | 3 | regex | namespace, ${}, SELECT * |
 
-#### 핵심 패턴: 메서드 명명규칙 검사 (regex-multiline)
+#### The key pattern: checking method names (regex-multiline)
 
-메서드 명명규칙은 어노테이션과 메서드 선언이 다른 줄에 있으므로 `regex-multiline`을 사용합니다:
+The annotation and the method declaration sit on different lines, so this needs `regex-multiline`:
 
 ```yaml
-# GET 요청인데 select/get/find로 시작하지 않는 메서드
+# a GET handler whose name does not start with select/get/find
 - id: "egov-method-001"
-  name: "조회 메서드 접두사 위반"
+  name: "Read method prefix not followed"
   severity: "medium"
   category: "method-naming"
   pattern:
     type: "regex-multiline"
     regex: "@(GetMapping|RequestMapping).*\\n\\s*public\\s+\\w+\\s+(?!(select|get|find|search|retrieve|view|download|check|is)\\w+)([a-z]\\w+)\\s*\\("
   custom:
-    fix: "조회 메서드: select*, get*, find* 접두사 사용"
+    fix: "Read methods take a select*, get* or find* prefix"
 ```
 
-검출 대상:
+What it catches:
 ```java
 @GetMapping("/process")
-public String processData(ModelMap model) {  // ← 위반! select*/get*/find* 아님
+public String processData(ModelMap model) {  // ← violation: not select*/get*/find*
 ```
 
-#### 핵심 패턴: 계층 명명규칙 (regex-multiline + negative lookahead)
+#### The key pattern: layer naming (regex-multiline plus negative lookahead)
 
 ```yaml
-# @Controller 있지만 클래스명에 Controller 접미사 없음
+# has @Controller but the class name lacks the Controller suffix
 - id: "egov-naming-001"
   pattern:
     type: "regex-multiline"
     regex: "@Controller[\\s\\S]*?class\\s+(?!\\w*Controller\\b)\\w+"
 
-# @Mapper 있지만 인터페이스명에 Mapper/DAO 접미사 없음
+# has @Mapper but the interface name lacks the Mapper/DAO suffix
 - id: "egov-naming-004"
   pattern:
     type: "regex-multiline"
     regex: "@Mapper[\\s\\S]*?interface\\s+(?!\\w*(Mapper|DAO)\\b)\\w+"
 ```
 
-> **`[\\s\\S]*?`**: regex-multiline에서 "줄 바꿈을 포함한 모든 문자를 비탐욕적(non-greedy)으로 매칭"합니다. 어노테이션과 class 선언 사이에 여러 줄이 있어도 정확히 매칭됩니다.
+> **`[\\s\\S]*?`**: under regex-multiline this means "any character including newlines, lazily". It still matches when several lines sit between the annotation and the class declaration.
 
-#### 커스텀 egov 규칙 추가 예시
+#### Adding your own egov rule
 
 ```yaml
-# Controller에서 Service 직접 생성 금지
+# no constructing a Service inside a Controller
 - id: "egov-custom-001"
-  name: "Controller에서 Service 직접 생성"
+  name: "Service constructed inside a Controller"
   severity: "high"
   category: "egov-standard"
-  description: "Controller에서 new Service()를 직접 생성하면 DI가 작동하지 않습니다"
+  description: "new Service() in a Controller takes it out of dependency injection"
   enabled: true
   pattern:
     type: "regex-multiline"
     regex: "@Controller[\\s\\S]*?new\\s+\\w+Service(Impl)?\\s*\\("
   custom:
-    fix: "Spring DI를 통해 Service를 주입하세요"
+    fix: "Inject the Service through Spring DI"
 
-# Mapper XML에 resultType="hashmap" 지양
+# avoid resultType="hashmap" in mapper XML
 - id: "egov-custom-002"
-  name: "MyBatis resultType=hashmap 사용"
+  name: "MyBatis resultType=hashmap"
   severity: "medium"
   category: "mybatis"
-  description: "hashmap 반환은 타입 안전하지 않습니다. VO/DTO를 정의하세요."
+  description: "Returning a hashmap gives up type safety. Define a VO or DTO."
   enabled: true
   pattern:
     type: "regex"
     regex: "resultType\\s*=\\s*\"(hashmap|HashMap|map)\""
   custom:
-    fix: "전용 VO 클래스를 정의하여 resultType에 지정하세요"
+    fix: "Define a VO class and name it in resultType"
 ```
 
 ---
 
-## Part 4: 패턴 타입 선택 가이드
+## Part 4: choosing a pattern type
 
-### 언제 어떤 타입을 사용할까?
+### Which type, when
 
 ```
-패턴이 한 줄에 완결되는가?
-├── YES → 주석에서 오탐이 발생하는가?
+Does the pattern fit on one line?
+├── YES → does it misfire on comments?
 │   ├── YES → type: "ast-filtered-regex"
-│   │         예: logger.info(... +), System.out, 보안 패턴
+│   │         e.g. logger.info(... +), System.out, security patterns
 │   └── NO  → type: "regex"
-│             예: new Date(), @Autowired$
-└── NO → 패턴이 여러 줄에 걸치는가?
+│             e.g. new Date(), @Autowired$
+└── NO → does it span several lines?
     ├── YES → type: "regex-multiline"
-    │         예: @Controller...class, @GetMapping...public void
-    └── Java AST 구조 분석이 필요한가?
-        ├── import 경로 → type: "ast-import"
-        ├── 메서드 호출 + 위치(루프/catch) → type: "ast-method-call"
-        ├── 어노테이션 속성 → type: "ast-annotation"
-        ├── 변수/필드 타입·이름 → type: "ast-variable"
-        ├── try-catch 구조 → type: "ast-try-catch"
-        ├── 클래스 메서드/필드 수 → type: "ast-class"
-        └── 다건 CUD + @Transactional 검사 → type: "ast-multi-cud"
+    │         e.g. @Controller...class, @GetMapping...public void
+    └── do you need the Java AST?
+        ├── import paths           → type: "ast-import"
+        ├── a call, and where it sits → type: "ast-method-call"
+        ├── annotation attributes  → type: "ast-annotation"
+        ├── variable/field name or type → type: "ast-variable"
+        ├── try-catch shape        → type: "ast-try-catch"
+        ├── methods/fields per class → type: "ast-class"
+        └── several CUD calls without @Transactional → type: "ast-multi-cud"
 ```
 
-### regex vs regex-multiline 핵심 차이
+### regex vs regex-multiline, the difference that matters
 
 | | `regex` | `regex-multiline` |
 |---|---------|-------------------|
-| 매칭 단위 | 파일의 각 줄(line) | 파일 전체(entire file) |
-| `\n` 매칭 | ❌ 불가 | ✅ 가능 |
-| `[\s\S]` | ❌ 줄 내에서만 | ✅ 줄 바꿈 포함 |
-| `^` / `$` | 줄의 시작/끝 | 파일의 시작/끝 |
-| 성능 | 빠름 | 패턴에 따라 느릴 수 있음 |
-| 사용 시점 | 한 줄 패턴 | 어노테이션+선언, 블록 구조 |
+| What it matches against | each line of the file | the whole file |
+| Matching `\n` | ❌ never | ✅ yes |
+| `[\s\S]` | ❌ within a line only | ✅ newlines included |
+| `^` / `$` | start and end of a line | start and end of the file |
+| Speed | fast | can be slow, depending on the pattern |
+| When to use it | single-line patterns | annotation plus declaration, block structure |
 
-> **가장 흔한 실수**: `regex` 타입에 `\n` 이나 `[\s\S]`를 사용하면 **절대 매칭되지 않습니다**. 여러 줄에 걸치는 패턴은 반드시 `regex-multiline`을 사용하세요.
+> **The mistake everyone makes**: `\n` or `[\s\S]` under `regex` **never matches**. A pattern that spans lines must be `regex-multiline`.
 
-### ast-* 타입이 regex보다 나은 경우
+### Where an ast-* type beats a regex
 
-| 검사 대상 | regex의 문제 | ast-* 해결책 |
+| What you are checking | the trouble with regex | the ast-* answer |
 |-----------|-------------|-------------|
-| import 경로 | 주석/문자열 오탐 | `ast-import`: 실제 import문만 검사 |
-| 루프 내 메서드 호출 | 멀티라인 패턴 복잡 | `ast-method-call` + `context: inside-loop` |
-| 클래스 메서드 수 | regex로 불가능 | `ast-class` + `max_methods: N` |
-| 어노테이션 속성 | key=value 파싱 복잡 | `ast-annotation` + `missing_attr_name` |
-| catch 블록 분석 | 중첩 중괄호 파싱 어려움 | `ast-try-catch` + `catch_is_empty` |
-| 주석 내 패턴 오탐 | 주석/코드 구분 불가 | `ast-filtered-regex`: 주석 라인 자동 제외 |
-| 다건 CUD 트랜잭션 | regex로 메서드 단위 분석 불가 | `ast-multi-cud` + `min_cud_calls: N` |
+| Import paths | misfires on comments and strings | `ast-import` looks only at real imports |
+| A call inside a loop | the multiline pattern gets complex | `ast-method-call` plus `context: inside-loop` |
+| Methods per class | not expressible | `ast-class` plus `max_methods: N` |
+| Annotation attributes | parsing key=value is painful | `ast-annotation` plus `missing_attr_name` |
+| Catch blocks | nested braces are hard to parse | `ast-try-catch` plus `catch_is_empty` |
+| Misfiring on comments | cannot tell comment from code | `ast-filtered-regex` skips comment lines |
+| Multi-row CUD transactions | a regex cannot reason per method | `ast-multi-cud` plus `min_cud_calls: N` |
 
-### 엔진 동작 방식 비교
+### How the engines differ
 
-| 항목 | regex | regex-multiline | ast-filtered-regex | AST 쿼리 |
+| | regex | regex-multiline | ast-filtered-regex | AST query |
 |------|-------|-----------------|-------------------|----------|
-| **입력 단위** | 라인 1개씩 | 파일 전체 (`\n` join) | 라인 1개씩 | ANTLR4 파스 트리 |
-| **매칭 방식** | 텍스트 정규식 | 텍스트 정규식 | 정규식 + 주석 필터 | 구조체 속성 비교 |
-| **멀티라인 패턴** | 불가 | **가능** | 불가 | 해당없음 (구조) |
-| **주석 오탐 제거** | 없음 | 없음 | **자동 제거** | **구조적 제거** |
-| **컨텍스트 조건** | 없음 | 없음 | 없음 | inside-loop, inside-catch 등 |
-| **타임아웃** | 100ms | 500ms | 100ms | 없음 (트리 순회) |
-| **지원 언어** | 모든 언어 | 모든 언어 | Java (fallback: 전체) | Java 전용 |
-| **적합한 용도** | 단순 키워드 감지 | 여러 줄 패턴 | 주석 오탐 제거 필요 시 | 메서드/클래스/구조 분석 |
+| **Input unit** | one line at a time | the whole file (joined with `\n`) | one line at a time | the ANTLR4 parse tree |
+| **How it matches** | text regex | text regex | regex plus a comment filter | comparing structural properties |
+| **Multiline patterns** | no | **yes** | no | n/a (structural) |
+| **Comment misfires** | not handled | not handled | **removed automatically** | **removed structurally** |
+| **Context conditions** | none | none | none | inside-loop, inside-catch and so on |
+| **Timeout** | 100 ms | 500 ms | 100 ms | none (it walks the tree) |
+| **Languages** | all | all | Java (falls back to regex elsewhere) | Java only |
+| **Best for** | simple keyword detection | multiline patterns | when comments cause misfires | method, class and structural analysis |
 
-### 동일 규칙의 타입별 구현 예시
+### The same rule written three ways
 
-`System.out.println` 사용 감지를 3가지 방식으로 작성:
+Detecting `System.out.println`, three ways:
 
 ```yaml
-# 1) regex — 주석에서도 오탐 가능
+# 1) regex — can misfire on comments
 - id: "example-regex"
   pattern:
     type: "regex"
     regex: "System\\.out\\.println"
 
-# 2) ast-filtered-regex — 주석 라인 자동 스킵
+# 2) ast-filtered-regex — skips comment lines
 - id: "example-ast-filtered"
   pattern:
     type: "ast-filtered-regex"
     regex: "System\\.out\\.println"
 
-# 3) ast-method-call — 실제 메서드 호출 노드만 감지 (가장 정확)
+# 3) ast-method-call — only real call nodes, the most accurate
 - id: "example-ast-call"
   pattern:
     type: "ast-method-call"
@@ -1615,13 +1615,17 @@ public String processData(ModelMap model) {  // ← 위반! select*/get*/find* �
     qualifier: "System\\.out"
 ```
 
-**오탐/정탐 비교:**
+**What each one does:**
 
-| 소스코드 | regex | ast-filtered-regex | ast-method-call |
+| Source | regex | ast-filtered-regex | ast-method-call |
 |----------|-------|-------------------|-----------------|
-| `System.out.println("hello");` | 검출 | 검출 | 검출 |
-| `// System.out.println 금지` | 오탐 | 스킵 | 스킵 |
-| `/* System.out.println */` | 오탐 | 스킵 | 스킵 |
-| `String s = "System.out.println";` | 오탐 | 오탐 | 스킵 |
+| `System.out.println("hello");` | found | found | found |
+| `// System.out.println is banned` | misfire | skipped | skipped |
+| `/* System.out.println */` | misfire | skipped | skipped |
+| `String s = "System.out.println";` | misfire | misfire | skipped |
 
-> **요약**: 단순 키워드 → `regex`, 주석 오탐 문제 → `ast-filtered-regex`, 구조적 정확성 → `ast-*`, 여러 줄 패턴 → `regex-multiline`
+> **In short**: a simple keyword → `regex`; misfires on comments → `ast-filtered-regex`; structural accuracy → `ast-*`; a pattern that spans lines → `regex-multiline`
+
+---
+
+[한국어](CUSTOM_RULES.ko.md)

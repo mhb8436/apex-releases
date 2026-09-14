@@ -8,9 +8,15 @@
 > 한 번 내려받으면 데스크톱 앱과 명령행 바이너리가 함께 들어 있습니다.
 > JVM도 Node.js도 파이썬도 필요 없고, 인터넷이 끊긴 환경에서 그대로 돕니다.
 
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#설치)
+[![Release](https://img.shields.io/github/v/release/mhb8436/apex-releases?label=release&color=2f855a)](https://github.com/mhb8436/apex-releases/releases/latest)
+[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](#설치)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](https://www.gnu.org/licenses/agpl-3.0)
 
+> 이 문서는 한국어판입니다. 최신 내용은 [영문 README](README.md)를 기준으로
+> 합니다.
+
+[**다운로드**](https://github.com/mhb8436/apex-releases/releases/latest) ·
+[빠른 시작](docs/QUICK_START.ko.md) ·
 [English](README.md)
 
 <!-- APEX-DEMO-KO:START -->
@@ -23,12 +29,25 @@
 전자정부 표준프레임워크 기반 실제 프로젝트(413파일 / 128,497줄)를 2.56초에
 점검한 화면입니다. 경로와 클래스명은 익명화했고 수치는 실제 값입니다.
 
+### 코드를 읽고 그 자리에서 고치기 — 데스크톱 앱
+
+![APEX 편집기](docs/media/editor.gif)
+
+정적 분석 도구 대부분이 여기서 손을 뗍니다. 파일을 이름으로 찾아 열면 그
+파일의 이슈가 여백과 미니맵에 전부 표시되고, 화살표나 `F8` 로 건너뜁니다.
+[편집]을 누르고 한 줄을 고쳐 저장하면 **그 파일만** 즉시 다시 검사합니다 —
+11건이 10건이 되는 데 전체 점검을 다시 돌리지 않습니다.
+
+편집기가 앱에 들어 있습니다. 반입하는 모든 실행 파일을 승인받아야 하는
+현장에서, 승인받을 것이 하나 줄어듭니다.
+
 ### 커스텀 규칙 추가 — 데스크톱 앱
 
 ![커스텀 규칙](docs/media/custom-rule.gif)
 
 팀 규약을 정규식으로 등록하면 다음 점검부터 바로 잡힙니다. 저장 전에 샘플
-코드로 매치를 확인할 수 있습니다.
+코드를 붙여넣으면 실제로 잡히는 자리를 보여 줍니다 — 점검 엔진과 같은 기준으로
+판정하므로, 여기서 잡히는 패턴이 점검에서 0건으로 나오는 일은 없습니다.
 
 ### 인터넷 없이 만드는 AI 감리 보고서 — 터미널
 
@@ -46,7 +65,7 @@ vLLM 서버가 그대로 붙고, 클라우드 API도 외부 연결도 쓰지 않
 만듭니다. 잘 도는 데모는 아무것도 증명하지 않습니다. 막혀야 할 때 막히는
 데모가 증거입니다.
 
-같은 두 단계를 직접 돌려볼 수 있습니다: [폐쇄망 검증](docs/AIRGAP_VERIFICATION.md)
+같은 두 단계를 직접 돌려볼 수 있습니다: [폐쇄망 검증](docs/AIRGAP_VERIFICATION.ko.md)
 
 <!-- APEX-DEMO-KO:END -->
 
@@ -138,8 +157,6 @@ cd apex-linux-amd64
 없습니다"가 뜹니다. 압축을 푼 폴더에서 `xattr -dr com.apple.quarantine .` 를
 한 번 실행하면 됩니다.
 
-**데스크톱 앱 화면은 한국어만 지원합니다.** CLI 는 `--lang=en|ko` 를 따릅니다.
-
 **Linux용 데스크톱 앱이 없습니다.** Linux 에서 APEX 는 CLI 입니다.
 
 ## 시작하기
@@ -194,6 +211,11 @@ apex ./src --profile=sql-ddl --ddl=./ddl/
 # 영문 출력
 apex ./src --profile=all --lang=en
 ```
+
+> 두 입구 모두 기본이 영어입니다. 앱은 **설정**에서 언어를 고르고, CLI 는
+> `--lang` (`en` / `ko`) 또는 환경변수 `APEX_LANG` 을 따릅니다. 시스템 로캘은
+> 보지 않습니다 — 돌리는 장비에 따라 언어가 달라지는 도구보다 항상 같은 쪽이
+> 낫습니다.
 
 ## 프로파일
 
@@ -305,7 +327,7 @@ apex ai-report scan.json --offline \
 실패합니다.
 
 말로 믿는 대신 차단 장치가 실제로 살아 있는지 확인하려면
-[폐쇄망 검증](docs/AIRGAP_VERIFICATION.md)을 따라 해보세요. 외부 엔드포인트를
+[폐쇄망 검증](docs/AIRGAP_VERIFICATION.ko.md)을 따라 해보세요. 외부 엔드포인트를
 가리켜 실패하는 것을 본 다음 로컬로 생성하는 순서입니다.
 
 | 옵션 | 설명 | 기본값 |
@@ -316,7 +338,7 @@ apex ai-report scan.json --offline \
 | `--model` | 모델 이름 | — |
 | `--api-key` | API 키. 로컬 서버는 아무 값이나 됨 | — |
 | `--project` | 보고서에 쓸 대상 이름 | 입력 파일명 |
-| `--lang` | `ko` / `en` | `ko` |
+| `--lang` | 보고서 언어 `ko` / `en` | 화면 언어 |
 | `--offline` | 폐쇄망 모드. 루프백 밖 연결 차단 | `false` |
 | `--timeout` | 요청당 제한시간 | `5m` |
 
@@ -345,7 +367,7 @@ apex ai-report [scan.json]          점검 JSON으로 AI 감리 보고서 생성
 | `--cross-file-only` | | 크로스파일 분석만 실행 | `false` |
 | `--summary` | | 규칙별 요약 테이블. CI에서 유용 | `false` |
 | `--no-dedup` | | 중복 검출 유지 | `false` |
-| `--lang` | | 출력 언어 `en` / `ko` | 시스템 로캘 |
+| `--lang` | | 출력 언어 `en` / `ko` (또는 `APEX_LANG`) | `en` |
 | `--verbose` | `-v` | 상세 출력 | `false` |
 
 ## 데스크톱 앱 레퍼런스
@@ -441,10 +463,10 @@ apex ai-report [scan.json]          점검 JSON으로 AI 감리 보고서 생성
 
 ## 문서
 
-- [빠른 시작](docs/QUICK_START.md) — 데스크톱 앱과 CLI, 설치부터 첫 보고서까지
-- [사용자 매뉴얼](docs/APEX_사용자_매뉴얼.md) — 화면별·옵션별·규칙별 상세
-- [커스텀 규칙 작성](docs/CUSTOM_RULES.md)
-- [폐쇄망 검증](docs/AIRGAP_VERIFICATION.md) — 차단 장치가 실제로 도는지 확인
+- [빠른 시작](docs/QUICK_START.ko.md) — 데스크톱 앱과 CLI, 설치부터 첫 보고서까지
+- [사용자 매뉴얼](docs/USER_MANUAL.ko.md) — 화면별·옵션별·규칙별 상세
+- [커스텀 규칙 작성](docs/CUSTOM_RULES.ko.md)
+- [폐쇄망 검증](docs/AIRGAP_VERIFICATION.ko.md) — 차단 장치가 실제로 도는지 확인
 
 ## 라이선스
 

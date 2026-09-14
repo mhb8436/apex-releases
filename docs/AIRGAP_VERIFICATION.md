@@ -1,64 +1,73 @@
-# 폐쇄망 동작 검증
+# Verifying air-gapped operation
 
-APEX는 AI 감리 보고서를 **인터넷 연결 없이** 만들 수 있다. 이 문서는 그것을
-말이 아니라 **확인 가능한 절차**로 제시한다.
+APEX can write an AI audit report **with no internet connection**. This document
+does not ask you to take that on faith. It gives you a procedure you can run.
 
-## 왜 화면 녹화로는 증명되지 않는가
+## Why a screen recording proves nothing
 
-동작 화면은 아무것도 보장하지 않는다. 잘 도는 화면은 "이 순간 외부로 나가지
-않았다"의 근거가 되지 못한다. 뒤에서 조용히 나갔을 수도 있고, 녹화 시점에만
-꺼 두었을 수도 있다.
+A recording of the tool working guarantees nothing. "It ran fine" is not
+evidence that nothing left the machine at that moment. Something could have gone
+out quietly in the background, or the recording could have been made with the
+network switched off just for the take.
 
-그래서 증명은 반대로 한다.
+So the proof runs the other way round.
 
-> **바깥으로 나가려 하면 실패해야 한다.**
-> 그리고 그 실패를 검증하는 사람이 자기 환경에서 재현할 수 있어야 한다.
+> **An attempt to reach outside must fail.**
+> And whoever is checking must be able to reproduce that failure themselves.
 
-## 차단이 동작하는 방식
+## How the block works
 
-`--offline` 을 켜면 APEX는 연결이 실제로 맺어지는 지점에서 **목적지 IP**를
-확인하고, 루프백(`127.0.0.1`, `::1`)이 아니면 거부한다.
+With `--offline`, APEX inspects the **destination IP** at the point the
+connection is actually established, and refuses anything that is not loopback
+(`127.0.0.1`, `::1`).
 
-- 호스트명이 아니라 **DNS 해석이 끝난 IP**를 보므로, 이름을 바꿔 우회할 수 없다
-- **이름 해석 자체도 막힌다.** 외부 DNS 서버(UDP/TCP 53)로 나가는 연결도 차단된다
-- **프록시로 빠져나갈 수 없다.** 프록시를 타면 목적지가 프록시 주소로 바뀌어
-  검사가 무의미해지므로, 폐쇄망 모드에서는 프록시를 아예 쓰지 않는다
-- 프로세스 기본 HTTP 경로(`http.DefaultClient`)도 함께 막는다. 우리 코드가 쓰는
-  클라이언트만 막으면 의존 라이브러리가 조용히 나가는 문이 남는다
+- It looks at the **IP after DNS resolution**, not the hostname, so renaming the
+  host does not get around it
+- **Name resolution is blocked too.** Connections to an external DNS server
+  (UDP/TCP 53) are refused as well
+- **A proxy cannot be used to slip out.** Going through a proxy would change the
+  destination to the proxy's address and make the check meaningless, so
+  air-gapped mode does not use a proxy at all
+- The process-wide HTTP path (`http.DefaultClient`) is blocked as well. Blocking
+  only the client our own code uses would leave a door open for a dependency to
+  walk through
 
-### 이 장치가 보장하는 것과 보장하지 않는 것
+### What this guarantees, and what it does not
 
-**보장한다** — 이 실행에서 이 프로세스가 루프백 밖으로 TCP 연결을 맺지 않았다.
-연결을 시도했다면 보고서가 만들어지지 않고 실패한다.
+**It guarantees** that during this run, this process opened no TCP connection
+outside loopback. If it tried, no report is produced and the command fails.
 
-**보장하지 않는다** — 운영체제 수준의 완전한 감사는 아니다. 시스템 리졸버를
-쓰는 경로(cgo resolver)는 이 다이얼러를 타지 않을 수 있다. 그래서 엔드포인트는
-호스트명이 아니라 **루프백 IP로 직접 지정하는 것을 권장한다.**
+**It does not guarantee** a complete audit at the operating-system level. A path
+that uses the system resolver (the cgo resolver) may not go through this dialer.
+That is why we recommend **pointing the endpoint at a loopback IP directly**
+rather than at a hostname.
 
-실제 폐쇄망에서는 망 자체가 차단되어 있다. 이 장치의 역할은 그 환경에서
-도구가 조용히 실패하거나 알 수 없는 이유로 멈추는 대신, **무엇이 막혔는지
-분명히 말하며 실패하게** 만드는 것이다.
+On a genuinely air-gapped network the network itself is cut off. What this
+mechanism adds is that in such an environment the tool does not fail silently or
+stall for reasons nobody can name — it **fails while saying exactly what was
+blocked**.
 
-## 검증 절차
+## The procedure
 
-### 준비
+### Preparation
 
-사내 추론 서버가 필요하다. Ollama 기준:
+You need an in-house inference server. With Ollama:
 
 ```bash
 ollama pull qwen2.5-coder:7b
-ollama serve                      # 기본 127.0.0.1:11434
+ollama serve                      # defaults to 127.0.0.1:11434
 ```
 
-점검 결과 JSON도 필요하다.
+And a scan result in JSON:
 
 ```bash
 apex /path/to/src --profile=all -o json --output-file=scan.json
 ```
 
-### 1단계 — 차단이 살아 있는지 확인한다
+### Step 1 — confirm the block is alive
 
-**이 단계가 실패해야 정상이다.** 외부 주소를 가리키고 보고서 생성을 시도한다.
+**This step is supposed to fail.** Point it at an external address and try to
+generate a report.
 
 ```bash
 apex ai-report scan.json --offline \
@@ -66,77 +75,90 @@ apex ai-report scan.json --offline \
     -o /dev/null
 ```
 
-기대 결과 — 종료 코드 `1`, 그리고 차단 사유:
+Expected: exit code `1`, and the reason it was blocked:
 
 ```
-🔒 폐쇄망 모드: 루프백(127.0.0.1) 밖으로 나가는 연결을 차단합니다
-Error: 모델이 한 건도 응답하지 못했습니다: explain 호출 실패:
+🔒 Air-gapped mode: every connection that leaves loopback (127.0.0.1) is blocked
+80 issues · 10 files → openai:gpt-4o
+Error: The model did not answer for a single finding: explain call failed:
   Post "https://api.openai.com/v1/chat/completions":
   dial tcp: lookup api.openai.com on 10.0.0.1:53:
-  폐쇄망 모드: 외부 연결이 차단되었습니다 (10.0.0.1:53).
-  루프백(127.0.0.1, ::1) 주소만 허용됩니다
+  Air-gapped mode blocked an outbound connection (10.0.0.1:53).
+  Only loopback addresses (127.0.0.1, ::1) are allowed.
+
+The endpoint you set is an external address. Point --endpoint at a local
+inference server (for example http://127.0.0.1:11434/v1).
 ```
 
-DNS 조회 단계에서 막혔다는 점에 주목한다. 이름 해석조차 하지 못했다.
+Note where it stopped: at the DNS lookup. It never got as far as resolving the
+name.
 
-> 이 단계가 **성공해버리면** 차단 장치가 동작하지 않는 것이다. 그 경우 2단계의
-> 성공은 아무것도 증명하지 못한다.
+> If this step **succeeds**, the block is not working. In that case the success
+> of step 2 proves nothing at all.
 
-### 2단계 — 로컬 추론 서버로는 보고서가 나오는지 확인한다
+### Step 2 — confirm a local server does produce the report
 
-같은 `--offline` 을 켠 채로 엔드포인트만 사내 서버로 바꾼다.
+Leave `--offline` on and change only the endpoint to your own server.
 
 ```bash
 apex ai-report scan.json --offline \
     --endpoint http://127.0.0.1:11434/v1 --model qwen2.5-coder:7b \
-    --project "OO시스템" -o report.html
+    --project "Example System" -o report.html
 ```
 
-기대 결과 — 종료 코드 `0`, 보고서 생성:
+Expected: exit code `0`, and a report:
 
 ```
-🔒 폐쇄망 모드: 루프백(127.0.0.1) 밖으로 나가는 연결을 차단합니다
-이슈 400건 · 파일 413개 → local:qwen2.5-coder:7b
-✅ report.html (139초 · 품질 27점 · 종합 E등급)
+🔒 Air-gapped mode: every connection that leaves loopback (127.0.0.1) is blocked
+400 issues · 413 files → local:qwen2.5-coder:7b
+✅ report.html (139s · quality 27 · overall grade E)
 ```
 
-보고서에 남는 생성 주체는 `local:qwen2.5-coder:7b` 다. 무엇으로 만들었는지가
-보고서 자체에 기록된다.
+The report records `local:qwen2.5-coder:7b` as what generated it. What produced
+the report is written into the report itself.
 
-### 한 번에 돌리기
+### Running both at once
 
-두 단계를 순서대로 돌리고, 1단계가 차단되지 않으면 실패하는 타깃이 있다.
+There is a target that runs the two steps in order and fails if step 1 is not
+blocked.
 
 ```bash
 make airgap-verify AIRGAP_SCAN=scan.json
 ```
 
-### 더 확실히 하려면 — 망을 끊고 같은 절차를 돌린다
+### To be surer still — cut the network and run the same procedure
 
-가장 확실한 검증은 검증자의 환경에서 하는 것이다. 장비를 실제 폐쇄망에 두거나
-네트워크를 분리한 상태에서 2단계를 그대로 돌리면 된다. 결과가 같아야 한다.
+The most convincing check is the one run in the verifier's own environment. Put
+the machine on a genuinely isolated network, or disconnect it, and run step 2
+exactly as above. The result must be the same.
 
-## 소스 수준 검증
+## Verifying at the source level
 
-차단 장치는 `internal/netguard` 에 있고, 동작을 고정하는 시험이 함께 있다.
+The block lives in `internal/netguard`, with tests that pin its behaviour.
 
 ```bash
 go test ./internal/netguard/ -v
 ```
 
-| 시험 | 보장하는 것 |
-|------|------------|
-| `TestLoopbackIsAllowed` | 사내 추론 서버로는 연결된다 |
-| `TestExternalIsBlocked` | 외부 IPv4·IPv6 주소로 나가지 못한다 |
-| `TestBlockIsImmediate` | 타임아웃이 아니라 연결 전에 거부한다 |
-| `TestInstallBlocksDefaultClient` | 의존 라이브러리의 기본 경로도 막힌다 |
-| `TestProxyCannotBypass` | 프록시 설정으로 우회할 수 없다 |
+| Test | What it guarantees |
+|------|--------------------|
+| `TestLoopbackIsAllowed` | an in-house inference server is still reachable |
+| `TestExternalIsBlocked` | external IPv4 and IPv6 addresses cannot be reached |
+| `TestBlockIsImmediate` | the refusal happens before the connection, not as a timeout |
+| `TestInstallBlocksDefaultClient` | a dependency's default path is blocked too |
+| `TestProxyCannotBypass` | proxy settings cannot be used to get around it |
 
-시험에 쓰는 주소는 문서용으로 예약된 `203.0.113.0/24`(TEST-NET-3)와
-`2001:db8::/32` 다. 차단이 동작하지 않더라도 실제로 누군가에게 패킷이 가지 않는다.
+The addresses used in the tests are `203.0.113.0/24` (TEST-NET-3) and
+`2001:db8::/32`, both reserved for documentation. Even if the block failed, no
+packet would reach anyone.
 
-## 클라우드 API를 쓰는 경우
+## If you are using a cloud API
 
-`--provider claude` 와 `--provider gemini` 는 외부 API이므로 `--offline` 과 함께
-쓸 수 없고, 시도하면 실행 전에 거부된다. 폐쇄망 납품 구성에서는
-OpenAI 호환 엔드포인트(사내 Ollama·vLLM)만 사용한다.
+`--provider claude` and `--provider gemini` are external APIs, so they cannot be
+combined with `--offline`; trying to do so is refused before the run starts. An
+air-gapped deployment uses only an OpenAI-compatible endpoint — an in-house
+Ollama or vLLM server.
+
+---
+
+[한국어](AIRGAP_VERIFICATION.ko.md)
